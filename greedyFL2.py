@@ -1,3 +1,7 @@
+from itertools import combinations
+import csv
+import math
+
 class City:
   def __init__(self, c, d):
     self.next = {}
@@ -13,6 +17,9 @@ class City:
   
   def covered(self):
     self.fac = True
+  
+  def uncover(self):
+    self.fac = False
 
 class Facility:
   def __init__(self, f):
@@ -22,13 +29,17 @@ class Facility:
     self.orig = f
 
   def __str__(self):
-    return f'Facility({self.orig},{self.closest},{self.cities})'
+    return f'Facility({self.orig},{self.cost},{self.closest},{self.cities})'
   
   def setClosest(self, i):
     self.closest = i
 
   def used(self):
     self.cost = 0
+  
+  def unuse(self):
+    self.cost = self.orig
+    self.cities = []
 
 def printCF(dict):
   for i in range(dict[-1]):
@@ -55,6 +66,8 @@ def findStar(fac, cit):
     farthest = fac[j].closest
     commTemp = cit[farthest].pos[j]
     numC = 1
+    #print(commTemp)
+    #print(fac[j].cost)
     costTemp = (commTemp + fac[j].cost) / numC
     if costTemp < cost:
       cost = costTemp
@@ -122,7 +135,7 @@ def colorDone(cit, c):
       cit[i].covered()
 
 
-def run(cities,facilities,q):
+def guess(cities,facilities,q):
   for j in range(facilities[-1]):
     initNext(j,cities,facilities[j])
 
@@ -142,9 +155,32 @@ def run(cities,facilities,q):
       cost += facilities[j].orig
       for i in facilities[j].cities:
         cost += cities[i].pos[j]
-
   return cost    
 
+def reset(cit, fac):
+  for i in range(cit[-1]):
+    cit[i].uncover()
+  for j in range(fac[-1]):
+    fac[j].unuse()
+      
+
+def run(cit, fac, q):
+  faci = [i for i in range(fac[-1])]
+  guesses = combinations(faci,len(q))
+  #printCF(cit)
+  cost = 10**cit[-1]
+  for g in guesses:
+    reset(cit,fac)
+    for j in g:
+      fac[j].used()
+    #printCF(fac)
+    costTemp = guess(cit.copy(), fac, q.copy())
+    #printCF(fac)
+    #print(costTemp)
+    if costTemp < cost:
+      cost = costTemp
+  
+  return cost
 
 def main():
   cities = {-1 : 4,
@@ -157,7 +193,19 @@ def main():
          1 : Facility(25)}
   q = [1,1]
 
-  run(cities,facilities,q)
+  #print(run(cities,facilities,q))
+
+  cities0 = {-1 : 4,
+         0 : City(0,[2,70]), 
+         1 : City(0,[50,4]), 
+         2 : City(0,[3,1]), 
+         3 : City(0,[4,6])}
+  facilities0 = {-1 : 2,
+         0 : Facility(17), 
+         1 : Facility(25)}
+  q0 = [2]
+
+  #print(run(cities0,facilities0,q0))
   
   cities2 = {-1 : 6,
              0 : City(0,[1,1000,1000]),
@@ -175,6 +223,32 @@ def main():
   q2 = [5]
   
 
-  run(cities2,facilities2,q2)
-  
+  #print(run(cities2,facilities2,q2))
+
+  citdat1 = {}
+  facdat1 = {}
+  qdat1 = [0]
+  citst = False
+  facst = False
+  with open("random1dist.csv", 'r') as dat1:
+    f1 = csv.reader(dat1)
+    for line in f1:
+      if len(line) == 2 and not citst:
+        citst = True
+        qdat1 = qdat1*int(line[1])
+        citdat1[-1] = int(line[0])
+      elif len(line) == 1 and not facst:
+        facst = True
+        facdat1[-1] = int(line[0])
+      elif citst and not facst:
+        c=0
+        c = int(line[1])
+        qdat1[c] += 1
+        citdat1[int(line[0])] = City(c,[float(d) for d in line[2:]])
+      elif citst and facst:
+        facdat1[int(line[0])] = Facility(float(line[1]))
+ 
+
+  print(run(citdat1, facdat1, [math.floor(7/10*qdat1[i]) for i in range(len(qdat1))]))
+
 main()
