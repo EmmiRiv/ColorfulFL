@@ -6,7 +6,7 @@ omega = 5
 numcit = 100
 numfac = 9
 
-with open("random1.csv", 'w', newline='') as rdat:
+with open("datasets/random1.csv", 'w', newline='') as rdat:
   r = csv.writer(rdat, quoting=csv.QUOTE_MINIMAL)
 
   r.writerow([numcit,omega])
@@ -17,7 +17,7 @@ with open("random1.csv", 'w', newline='') as rdat:
   for _ in range(numfac):
     r.writerow([random()*numcit, random()*numcit, random()*numcit])
 
-with open("random1.csv", 'r') as rdat, open("random1dist.csv", 'w', newline='') as met:
+with open("datasets/random1.csv", 'r') as rdat, open("random1dist.csv", 'w', newline='') as met:
   r = list(csv.reader(rdat))
   d = csv.writer(met, quoting=csv.QUOTE_MINIMAL)
   cit = r[1:numcit+1]
