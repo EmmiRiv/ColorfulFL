@@ -16,7 +16,7 @@ class CityFacility:
         self.next = {}
 
     def __str__(self):
-        return f'CityFacility({self.current},{self.color},{self.covered},{self.cities})'
+        return f'CityFacility({self.orig},{self.color},{self.covered},{self.cities})'
 
     def setNext(self, j, new):
         self.next[j] = new
@@ -37,6 +37,9 @@ class CityFacility:
         self.current = self.orig
         self.cities = []
 
+    def outlier(self):
+        self.color = 0
+
 def printCF(dict):
     for i in range(dict[-1]):
         print(i," ",dict[i])
@@ -44,9 +47,10 @@ def printCF(dict):
 def printF(cit, facC, citC, d):
     for jF in range(len(facC)):
         j = facC[jF]
-        print("%d %f" % (j, cit[j].orig))
+        print("Facility {0:6d} cost {1:6.2f}".format(j, cit[j].orig))
         for i in citC[jF]:
-            print("        %d %d %f" % (i, cit[i].color, d[i][j]))
+            print("{0:6d} {1:2d} {2:6.2f}".format(i, cit[i].color, d[i][j]))
+        print()
 
 def initNext(j, cit, d):
       lst = [i for i in range(cit[-1])]
@@ -110,7 +114,7 @@ def updateStar(cit, star, q):
                   cit[far].cover()
                   c = cit[far].color
                   q[c] -= 1
-                  if q[c] == 0:
+                  if q[c] <= 0:
                         colorDone(cit,c)
                         q[c] = -1
                   cit[j].cities.append(far)
@@ -196,9 +200,8 @@ def l2(v1,v2):
         d += (v1[i]-v2[i])**2
     return math.sqrt(d)
 
-def adult_data():
+def adult_data(n):
     adult = fetch_ucirepo(id=2)
-    n = 10
 
     datA = adult.data.features.head(n)
 
@@ -216,7 +219,7 @@ def adult_data():
             c = 1
         citA[i] = CityFacility(c, ln['age'])
         qA[c] += 1
-        pos.append([ln['hours-per-week'],ln['education-num']])
+        pos.append([ln['hours-per-week'],ln['education-num'],ln['capital-gain'],ln['capital-loss']])
 
     dist = np.zeros((n,n))
 
@@ -224,9 +227,7 @@ def adult_data():
         for j in range(n):
             dist[i][j] = l2(pos[i],pos[j])
 
-    cost, citC, facC = run(citA,[3,3],dist)
-    print(cost)
-    printF(citA, facC, citC, dist)
+    return citA, qA, dist
 
 def little_data():
     cit = {-1 : 4,
@@ -247,7 +248,18 @@ def main():
 
     #little_data()
 
-    adult_data()
+    citA, qA, distA = adult_data(30)
+
+    #printCF(citA)
+    cost, citC, facC = run(citA,[min(qA)/2,min(qA)/2],distA)
+    print(cost)
+    printF(citA, facC, citC, distA)
+
+    for i in range(citA[-1]):
+        citA[i].outlier()
+    cost, citC, facC = run(citA,[min(qA)],distA)
+    print(cost)
+    printF(citA, facC, citC, distA)
 
 
 main()
