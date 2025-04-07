@@ -1,7 +1,6 @@
 from itertools import combinations
 import csv
 import math
-from ucimlrepo import fetch_ucirepo
 import pandas as pd
 import numpy as np
 
@@ -201,6 +200,8 @@ def l2(v1,v2):
     return math.sqrt(d)
 
 def adult_data(n):
+    from ucimlrepo import fetch_ucirepo
+
     adult = fetch_ucirepo(id=2)
 
     datA = adult.data.features.head(n)
@@ -244,10 +245,50 @@ def little_data():
 
     print(run(cit, q, dist))
 
+def distance_adult(n):
+    """
+    adult 45222 6
+    2 race sex
+    """
+
+    datA = pd.read_csv("datasets/adult.ds")
+    print(datA.head())
+
+    citA = {}
+
+    citA[-1] = n
+    pos = []
+    qA = [0,0]
+
+
+    for i in range(n):
+        ln = datA.loc[i]
+        print(ln['id'])
+        if ln['c1'] == "Male":
+            c = 0
+        else:
+            c = 1
+        citA[i] = CityFacility(c, 100)
+        qA[c] += 1
+        pos.append([ln['d1'],ln['d2'],ln['d3'],ln['d4'],ln['d5'],ln['d6'],])
+
+    dist = np.zeros((n,n))
+
+    for i in range(n):
+        for j in range(n):
+            dist[i][j] = l2(pos[i],pos[j])
+
+    return citA, qA, dist
+
 def main():
 
     #little_data()
 
+    citA, qA, distA = distance_adult(10)
+
+    printCF(citA)
+
+    """
     citA, qA, distA = adult_data(30)
 
     #printCF(citA)
@@ -261,5 +302,6 @@ def main():
     print(cost)
     printF(citA, facC, citC, distA)
 
+    """
 
 main()
