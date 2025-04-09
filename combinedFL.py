@@ -3,45 +3,14 @@ import csv
 import math
 import pandas as pd
 import numpy as np
-
-class CityFacility:
-    def __init__(self, color, cost):
-        self.color = color
-        self.orig = cost
-        self.current = cost
-        self.closest = -1
-        self.cities = []
-        self.covered = False
-        self.next = {}
-
-    def __str__(self):
-        return f'CityFacility({self.orig},{self.color},{self.covered},{self.cities})'
-
-    def setNext(self, j, new):
-        self.next[j] = new
-
-    def cover(self):
-        self.covered = True
-
-    def uncover(self):
-        self.covered = False
-
-    def setClosest(self, i):
-        self.closest = i
-
-    def used(self):
-        self.current = 0
-
-    def unuse(self):
-        self.current = self.orig
-        self.cities = []
-
-    def outlier(self):
-        self.color = 0
+from cityfacility import CityFacility
+import sys
+import time
 
 def printCF(dict):
     for i in range(dict[-1]):
         print(i," ",dict[i])
+
 
 def printF(cit, facC, citC, d):
     for jF in range(len(facC)):
@@ -54,10 +23,7 @@ def printF(cit, facC, citC, d):
 def initNext(j, cit, d):
       lst = [i for i in range(cit[-1])]
       lst = sorted(lst, key = lambda x: d[x][j])
-      for i in range(cit[-1]-1):
-          cit[lst[i]].setNext(j, lst[i+1])
-      cit[lst[cit[-1]-1]].setNext(j, -1)
-      cit[j].setClosest(lst[0])
+      cit[j].lstC = lst
 
 def findStar(cit, d):
     star = -1
@@ -245,14 +211,12 @@ def little_data():
 
     print(run(cit, q, dist))
 
-def distance_adult(n):
+def distance_adult(n, F):
     """
     adult 45222 6
     2 race sex
+    ['id', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'c1', 'c2']
     """
-
-    datA = pd.read_csv("datasets/adult.ds")
-    print(datA.head())
 
     citA = {}
 
@@ -260,17 +224,18 @@ def distance_adult(n):
     pos = []
     qA = [0,0]
 
-
-    for i in range(n):
-        ln = datA.loc[i]
-        print(ln['id'])
-        if ln['c1'] == "Male":
-            c = 0
-        else:
-            c = 1
-        citA[i] = CityFacility(c, 100)
-        qA[c] += 1
-        pos.append([ln['d1'],ln['d2'],ln['d3'],ln['d4'],ln['d5'],ln['d6'],])
+    with open("datasets/adult.ds", 'r') as a:
+        datA = csv.reader(a, delimiter=' ')
+        next(datA)
+        for i in range(n):
+            ln = next(datA)
+            if ln[8] == 'Male':
+                c = 0
+            else:
+                c = 1
+            citA[i] = CityFacility(c, F)
+            qA[c] += 1
+            pos.append([float(ln[j]) for j in range(1,7)])
 
     dist = np.zeros((n,n))
 
@@ -284,24 +249,33 @@ def main():
 
     #little_data()
 
-    citA, qA, distA = distance_adult(10)
+    n = int(sys.argv[1])
+    F = float(sys.argv[2])
+    g = int(sys.argv[3])
 
-    printCF(citA)
+    start = time.time()
+    citA, qA, distA = distance_adult(n, F)
+    #printCF(citA)
+
+    qT = [math.floor(qA[i]*0.6) for i in range(len(qA))]
+    #print(qT)
+    running = time.time()
+    if g == 0:
+        cost, citC, facC = run(citA,qT,distA)
+    else:
+        cost, citC, facC = guess(citA,qT,distA)
+
+    #printF(citA, facC, citC, distA)
+    print(cost)
+    print("Runtime: ", time.time()-running)
+    print("Total time: ", time.time()-start)
 
     """
-    citA, qA, distA = adult_data(30)
-
-    #printCF(citA)
-    cost, citC, facC = run(citA,[min(qA)/2,min(qA)/2],distA)
-    print(cost)
-    printF(citA, facC, citC, distA)
-
     for i in range(citA[-1]):
         citA[i].outlier()
     cost, citC, facC = run(citA,[min(qA)],distA)
     print(cost)
     printF(citA, facC, citC, distA)
-
     """
 
 main()

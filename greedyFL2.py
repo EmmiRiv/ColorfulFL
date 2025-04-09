@@ -4,44 +4,7 @@ import math
 from ucimlrepo import fetch_ucirepo
 import pandas as pd
 import numpy as np
-
-class City:
-  def __init__(self, c):
-    self.next = {}
-    self.color = c
-    self.fac = False
-
-  def __str__(self):
-    return f'City({self.fac},{self.color},{self.fac})'
-
-  def setNext(self, j, new):
-    self.next[j] = new
-  
-  def covered(self):
-    self.fac = True
-  
-  def uncover(self):
-    self.fac = False
-
-class Facility:
-  def __init__(self, f):
-    self.cost = f
-    self.cities = []
-    self.closest = -1
-    self.orig = f
-
-  def __str__(self):
-    return f'Facility({self.orig},{self.cities})'
-  
-  def setClosest(self, i):
-    self.closest = i
-
-  def used(self):
-    self.cost = 0
-  
-  def unuse(self):
-    self.cost = self.orig
-    self.cities = []
+from cityfacility import City,Facility
 
 def printCF(dict):
   for i in range(dict[-1]):
@@ -119,7 +82,7 @@ def updateStar(fac, cit, star, q):
         colorDone(cit,c)
         q[c] = -1
       fac[j].cities.append(far)
-  
+
   if cit[far].next[j] != -1:
     fac[j].setClosest(cit[far].next[j])
 
@@ -137,7 +100,7 @@ def updateStar(fac, cit, star, q):
           if nxt != -1:
             city = nxt
             nxt = cit[city].next[f]
-  
+
 def colorDone(cit, c):
   for i in range(cit[-1]):
     if cit[i].color == c:
@@ -170,14 +133,14 @@ def guess(cities,facilities,q,d):
       cost += facilities[j].orig
       for i in facilities[j].cities:
         cost += d[i][j]
-  return cost, citC, facC  
+  return cost, citC, facC
 
 def reset(cit, fac):
   for i in range(cit[-1]):
     cit[i].uncover()
   for j in range(fac[-1]):
     fac[j].unuse()
-      
+
 
 def run(cit, fac, q, d):
   faci = [i for i in range(fac[-1])]
@@ -197,7 +160,7 @@ def run(cit, fac, q, d):
       cost = costTemp
       citC = citTemp
       facC = facTemp
-  
+
   return cost, citC, facC
 
 def l2(v1,v2):
@@ -231,19 +194,19 @@ def random_data():
         ddat1.append([float(d) for d in line[2:]])
       elif citst and facst:
         facdat1[int(line[0])] = Facility(float(line[1]))
- 
+
 
   print(run(citdat1, facdat1, [math.floor(7/10*qdat1[i]) for i in range(len(qdat1))],ddat1))
 
 
 def little_data():
   cities = {-1 : 4,
-         0 : City(0), 
-         1 : City(0), 
-         2 : City(1), 
+         0 : City(0),
+         1 : City(0),
+         2 : City(1),
          3 : City(1)}
   facilities = {-1 : 2,
-         0 : Facility(17), 
+         0 : Facility(17),
          1 : Facility(25)}
   q = [1,1]
   dists = np.array([[2,70],[50,4],[3,1],[4,6]])
@@ -252,18 +215,18 @@ def little_data():
 
 
   cities0 = {-1 : 4,
-         0 : City(0), 
-         1 : City(0), 
-         2 : City(0), 
+         0 : City(0),
+         1 : City(0),
+         2 : City(0),
          3 : City(0)}
   facilities0 = {-1 : 2,
-         0 : Facility(17), 
+         0 : Facility(17),
          1 : Facility(25)}
   q0 = [2]
   dists0 = np.array([[2,70],[50,4],[3,1],[4,6]])
 
   print(run(cities0,facilities0,q0,dists0))
-  
+
   cities2 = {-1 : 6,
              0 : City(0),
              1 : City(0),
@@ -271,12 +234,12 @@ def little_data():
              3 : City(0),
              4 : City(0),
              5 : City(0)}
-  
+
   facilities2 = {-1 : 3,
                  0 : Facility(1),
                  1 : Facility(1),
                  2 : Facility(2)}
-  
+
   q2 = [5]
   dists2 = np.array([[1,1000,1000],
                     [1,1000,1000],
@@ -311,9 +274,9 @@ def adult_data():
     qA[c] += 1
     facA[i] = Facility(ln['age'])
     pos.append([ln['hours-per-week'],ln['education-num']])
-  
+
   dist = np.zeros((10,10))
-  
+
   for i in range(10):
     for j in range(10):
       dist[i][j] = l2(pos[i],pos[j])
@@ -325,7 +288,7 @@ def adult_data():
 
 
 def main():
-  
+
   #little_data()
   random_data()
 

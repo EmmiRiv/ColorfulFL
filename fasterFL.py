@@ -2,11 +2,12 @@ from itertools import combinations
 import csv
 import math
 import numpy as np
-from FasterKmeans.Code import enhancedKmeans
+from FasterKmeans.Code import enhancedKmeans, kpp
 import time
 from cityfacility import TieredCity,TieredFacility
+import sys
 
-epsilon = 1.5
+epsilon = 1
 
 def makeRandomPoint(n, lower, upper):
     return np.random.normal(loc=upper, size=[lower, n])
@@ -36,6 +37,20 @@ def printCF(dict):
     for i in range(dict[-1]):
         print(i," ",dict[i])
 
+def printF(fac, cit, facC, citC, d):
+    for jF in range(len(facC)):
+        j = facC[jF]
+        print("Facility {0:6d} cost {1:6.2f}".format(j, fac[j].cost))
+        for i in citC[jF]:
+            print("{0:6d} {1:2d} {2:6.2f}".format(i, cit[i].color, d[j][i]))
+        print()
+
+def l2(v1,v2):
+    d = 0
+    for i in range(len(v1)):
+        d += (v1[i]-v2[i])**2
+    return math.sqrt(d)
+
 def init_tiers(fac, cit, dist):
     for j in range(fac[-1]):
         lst = [i for i in range(cit[-1])]
@@ -47,6 +62,8 @@ def init_tiers(fac, cit, dist):
             if dist[j][city] <= (1+epsilon)**t:
                 fac[j].add_city(city, t)
             else:
+                if len(fac[j].tiers[t]) == 0:
+                    fac[j].add_city(-2, t)
                 t += 1
                 fac[j].new_tier(t)
                 fac[j].add_city(city, t)
@@ -56,29 +73,32 @@ def init_tiers(fac, cit, dist):
         fac[j].add_city(-1, t+1)
 
 def find_star(fac, cit):
-    cost = 10**cit[-1]
+    cost = 10**fac[-1]
     star = [-1, -1]
     for j in range(fac[-1]):
         t = 0
         num = 0
         tieredC = []
         while fac[j].tiers[t][0] != -1:
-            for i in fac[j].tiers[t]:
-                if not cit[i].covered:
-                    num += len(fac[j].tiers[t])
-            if num == 0:
+            if fac[j].tiers[t][0] == -2:
                 t += 1
             else:
-                tC = 0
                 for i in fac[j].tiers[t]:
                     if not cit[i].covered:
-                        tC += (1 + epsilon)**t
-                tieredC.append(tC)
-                costT = (fac[j].current + sum(tieredC)) / num
-                if costT < cost:
-                    cost = costT
-                    star = [j, t]
-                t += 1
+                        num += len(fac[j].tiers[t])
+                if num == 0 or (1 + epsilon)**t > cost:
+                    t += 1
+                else:
+                    tC = 0
+                    for i in fac[j].tiers[t]:
+                        if not cit[i].covered:
+                            tC += (1 + epsilon)**t
+                    tieredC.append(tC)
+                    costT = (fac[j].current + sum(tieredC)) / num
+                    if costT < cost:
+                        cost = costT
+                        star = [j, t]
+                    t += 1
     return star
 
 def cover_color(cit, col):
@@ -105,13 +125,17 @@ def update_star(fac, cit, star, q):
     return False
 
 def find_cost(fac, dist):
+    citC = []
+    facC = []
     cost = 0
     for j in range(fac[-1]):
         if len(fac[j].cities) != 0:
+            facC.append(j)
+            citC.append(fac[j].cities)
             cost += fac[j].cost
             for i in fac[j].cities:
                 cost += dist[j][i]
-    return cost
+    return facC, citC, cost
 
 def guess(fac, cit, dist, q):
     done = False
@@ -129,19 +153,24 @@ def reset(fac, cit):
         fac[j].unused()
 
 def run(fac, cit, dist, q):
+    init_tiers(fac, cit, dist)
     faci = [i for i in range(fac[-1])]
     guesses = combinations(faci,len(q))
-    cost = 10**cit[-1]
+    cost = 10**fac[-1]
+    citF = []
+    facF = []
 
     for g in guesses:
         reset(fac, cit)
         for j in g:
             fac[j].used()
-        costT = guess(fac, cit, dist, q.copy())
+        facT, citT, costT = guess(fac, cit, dist, q.copy())
         #print(costT)
         if costT < cost:
             cost = costT
-    return cost
+            citF = citT
+            facF = facT
+    return facF, citF, cost
 
 def little_example():
     citE = {-1 : 4,
@@ -158,14 +187,71 @@ def little_example():
 
     qE = [2]
 
-    init_tiers(facE, citE, distE)
-
     print(run(facE, citE, distE, qE))
 
+def distance_adult(n, F, k):
+    """
+    adult 45222 6
+    2 race sex
+    ['id', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'c1', 'c2']
+    """
 
+    citA = {}
+    facA = {}
+
+    citA[-1] = n
+    facA[-1] = k
+    pos = []
+    qA = [0,0]
+
+    with open("datasets/adult.ds", 'r') as a:
+        datA = csv.reader(a, delimiter=' ')
+        next(datA)
+        for i in range(n):
+            ln = next(datA)
+            if ln[8] == 'Male':
+                c = 0
+            else:
+                c = 1
+            citA[i] = TieredCity(c)
+            qA[c] += 1
+            pos.append([float(ln[j]) for j in range(1,7)])
+
+    """
+    kplus = kpp.KPP(k,X=pos)
+    kplus.init_centers()
+    cList = [kpp.Point(x,len(x)) for x in kplus.mu]
+    """
+
+    config = enhancedKmeans.Kmeans(k,pos,0.01, initialCentroids=None)
+    distA = np.zeros((k,n))
+
+    for j,c in enumerate(config.centroidList):
+        for i in range(n):
+            distA[j][i] = l2(pos[i], c.point.coordinates)
+        facA[j] = TieredFacility(F)
+
+    return facA, citA, distA, qA
 
 def main():
     #random_example()
-    little_example()
+    #little_example()
 
+    n = int(sys.argv[1])
+    F = float(sys.argv[2])
+    k = int(sys.argv[3])
+
+    start = time.time()
+    fac, cit, dist, q = distance_adult(n, F, k)
+    qT = [math.floor(q[i]*0.6) for i in range(len(q))]
+
+    #print(dist)
+
+    running = time.time()
+    facL, citL, cost = run(fac, cit, dist, qT)
+    #printF(fac, cit, facL, citL, dist)
+
+    print("Cost: ", cost)
+    print("Runtime: ", time.time()-running)
+    print("Total time: ", time.time()-start)
 main()
