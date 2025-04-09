@@ -1,0 +1,3 @@
+[submodule "Faster-Kmeans"]
+	path = Faster-Kmeans
+	url = git@github.com:siddheshk/Faster-Kmeans.git
