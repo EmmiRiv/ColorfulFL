@@ -36,19 +36,20 @@ class City:
     def __init__(self, c):
         self.next = {}
         self.color = c
-        self.fac = False
+        self.covered = False
 
     def __str__(self):
-        return f'City({self.fac},{self.color},{self.fac})'
+        return f'City({self.covered},{self.color})'
 
     def setNext(self, j, new):
         self.next[j] = new
 
-    def covered(self):
-        self.fac = True
+    def cover(self):
+        self.covered = True
 
     def uncover(self):
-        self.fac = False
+        self.covered = False
+
 
 class Facility:
     def __init__(self, f):
@@ -56,12 +57,26 @@ class Facility:
         self.cities = []
         self.closest = -1
         self.orig = f
+        self.contributors = []
+        self.open = False
 
     def __str__(self):
-        return f'Facility({self.orig},{self.cities})'
+        return f'Facility({self.cost},{self.contributors})'
 
     def setClosest(self, i):
         self.closest = i
+
+    def add_contr(self, i):
+        self.contributors.append(i)
+
+    def add_city(self, i):
+        self.cities.append(i)
+
+    def open_fac(self):
+        self.open = True
+
+    def payment(self, delta):
+        self.cost -= delta
 
     def used(self):
         self.cost = 0
@@ -69,6 +84,9 @@ class Facility:
     def unuse(self):
         self.cost = self.orig
         self.cities = []
+        self.contributors = []
+        self.open = False
+
 
 class TieredCity:
     def __init__(self, c):
