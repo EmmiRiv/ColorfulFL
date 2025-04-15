@@ -153,7 +153,6 @@ def reset(fac, cit):
         fac[j].unused()
 
 def run(fac, cit, dist, q):
-    init_tiers(fac, cit, dist)
     faci = [i for i in range(fac[-1])]
     guesses = combinations(faci,len(q))
     cost = 10**fac[-1]
@@ -231,6 +230,8 @@ def distance_adult(n, F, k):
             distA[j][i] = l2(pos[i], c.point.coordinates)
         facA[j] = TieredFacility(F)
 
+    init_tiers(facA, citA, distA)
+
     return facA, citA, distA, qA
 
 def main():
@@ -248,8 +249,8 @@ def main():
     #print(dist)
 
     running = time.time()
-    facL, citL, cost = run(fac, cit, dist, qT)
-    #printF(fac, cit, facL, citL, dist)
+    facL, citL, cost = guess(fac, cit, dist, qT)
+    printF(fac, cit, facL, citL, dist)
 
     print("Cost: ", cost)
     print("Runtime: ", time.time()-running)

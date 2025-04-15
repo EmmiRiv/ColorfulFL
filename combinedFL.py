@@ -20,117 +20,78 @@ def printF(cit, facC, citC, d):
             print("{0:6d} {1:2d} {2:6.2f}".format(i, cit[i].color, d[i][j]))
         print()
 
-def initNext(j, cit, d):
-      lst = [i for i in range(cit[-1])]
-      lst = sorted(lst, key = lambda x: d[x][j])
-      cit[j].lstC = lst
+def initList(cit, d):
+    for j in range(cit[-1]):
+        lst = [i for i in range(cit[-1])]
+        lst = sorted(lst, key = lambda x: d[x][j])
+        cit[j].lstC = lst
 
 def findStar(cit, d):
-    star = -1
-    cost = 10**cit[-1]
-    go = False
-    for i in range(cit[-1]):
-        if cit[i].covered == False:
-            go = True
-    if not go:
-      return star
+    star = [-1, -1]
+    cost = 10**10
     for j in range(cit[-1]):
-        if not cit[j].covered:
-            farthest = cit[j].closest
-            commTemp = d[farthest][j]
-            numC = 1
-            #print(commTemp)
-            #print(fac[j].current)
-            costTemp = (commTemp + cit[j].current) / numC
-            if costTemp < cost:
-                  cost = costTemp
-                  star = [j, farthest]
-            while cit[farthest].next[j] != -1:
-                  numC += 1
-                  farthest = cit[farthest].next[j]
-                  commTemp += d[farthest][j]
-                  costTemp = (commTemp + cit[j].current) / numC
-                  if costTemp < cost:
-                        cost = costTemp
-                        star = [j, farthest]
+        if cit[j].isFac or not cit[j].covered:
+            i = 0
+            cum_sum = cit[j].current
+            numC = 0
+            costT = 0
+            while i < cit[-1] and d[j][i] < cost:
+                if cit[cit[j].lstC[i]].covered:
+                    i += 1
+                else:
+                    numC += 1
+                    cum_sum += d[j][i]
+                    costT = cum_sum / numC
+                    if costT < cost:
+                        cost = costT
+                        star = [j, i]
+                    i += 1
     return star
 
-def findClosest(j, start, cit):
-      cls = start
-      while cit[cls].covered and cit[cls].next[j] != -1:
-          cls = cit[cls].next[j]
-      return cls
-
-
 def updateStar(cit, star, q):
-      j = star[0]
-      cit[j].used()
-      far = cit[j].closest
-      cit[far].cover()
-      c = cit[far].color
-      q[c] -= 1
-      if q[c] == 0:
-            colorDone(cit,c)
-            q[c] = -1
-      cit[j].cities.append(far)
-      while far != star[1] and cit[far].next[j] != -1:
-            far = cit[far].next[j]
-            if not cit[far].covered:
-                  cit[far].cover()
-                  c = cit[far].color
-                  q[c] -= 1
-                  if q[c] <= 0:
-                        colorDone(cit,c)
-                        q[c] = -1
-                  cit[j].cities.append(far)
+    j = star[0]
+    cit[j].used()
+    cit[j].cover(q)
+    end = star[1] + 1
 
-      if cit[far].next[j] != -1:
-          cit[j].setClosest(cit[far].next[j])
+    for l in range(end):
+        i = cit[j].lstC[l]
+        if not cit[i].covered:
+            cit[j].cities.append(i)
+            cit[i].cover(q)
+            if q[cit[i].color] <= 0:
+                colorDone(cit, cit[i].color, q)
+    if max(q) <= 0:
+        return True
+    return False
 
-      for f in range(cit[-1]):
-            if f != j and not cit[j].covered:
-                  cls = findClosest(f,fac[f].closest,cit)
-                  if cls != -1:
-                        fac[f].setClosest(cls)
-                        city = cls
-                        nxt = cit[city].next[f]
-                        while nxt != -1:
-                              while nxt != -1 and cit[nxt].covered:
-                                  nxt = cit[nxt].next[f]
-                              cit[city].setNext(f,nxt)
-                              if nxt != -1:
-                                    city = nxt
-                                    nxt = cit[city].next[f]
-
-def colorDone(cit, c):
+def colorDone(cit, c, q):
     for i in range(cit[-1]):
         if cit[i].color == c:
-            cit[i].cover()
+            cit[i].cover(q)
 
 
-def guess(cit, q, d):
-    reset(cit)
-    #printCF(cit)
-    for j in range(cit[-1]):
-        initNext(j, cit, d)
-
-    while 1:
-        starOpt = findStar(cit, d)
-        if starOpt == -1:
-            break
-        updateStar(cit, starOpt, q)
-
-    cost = 0
-    facC = []
+def find_cost(cit, dist):
     citC = []
+    facC = []
+    cost = 0
     for j in range(cit[-1]):
-        if len(cit[j].cities) != 0:
+        if cit[j].isFac:
             facC.append(j)
             citC.append(cit[j].cities)
             cost += cit[j].orig
             for i in cit[j].cities:
-                cost += d[i][j]
-    return cost, citC, facC
+                cost += dist[j][i]
+    return facC, citC, cost
+
+def guess(cit, q, dist):
+    done = False
+    while not done:
+        st = findStar(cit, dist)
+        done = updateStar(cit, st, q)
+
+    #printCF(fac)
+    return find_cost(cit, dist)
 
 def reset(cit):
     for i in range(cit[-1]):
@@ -142,22 +103,22 @@ def run(cit, q, d):
     faci = [i for i in range(cit[-1])]
     guesses = combinations(faci,len(q))
     #printCF(cit)
-    cost = 10**cit[-1]
+    cost = 10**10
     citC = []
     facC = []
     for g in guesses:
+        print(g)
+        reset(cit)
         for j in g:
             cit[j].used()
-        #printCF(cit)
-        costTemp, citTemp, facTemp = guess(cit, q.copy(), d)
-        #printCF(cit)
-        #print(costTemp)
+        facTemp, citTemp, costTemp = guess(cit, q.copy(), d)
+        print(costTemp)
         if costTemp < cost:
             cost = costTemp
             citC = citTemp
             facC = facTemp
 
-    return cost, citC, facC
+    return facC, citC, cost
 
 def l2(v1,v2):
     d = 0
@@ -209,7 +170,9 @@ def little_data():
 
     q = [3]
 
-    print(run(cit, q, dist))
+
+    initList(cit, dist)
+    return cit, dist, q
 
 def distance_adult(n, F):
     """
@@ -243,11 +206,17 @@ def distance_adult(n, F):
         for j in range(n):
             dist[i][j] = l2(pos[i],pos[j])
 
+    initList(citA, dist)
     return citA, qA, dist
 
 def main():
 
-    #little_data()
+    """
+    cit, d, q = little_data()
+    facC, citC, cost = run(cit, q, d)
+    print(cost)
+    printF(cit, facC, citC, d)
+    """
 
     n = int(sys.argv[1])
     F = float(sys.argv[2])
@@ -255,17 +224,16 @@ def main():
 
     start = time.time()
     citA, qA, distA = distance_adult(n, F)
-    #printCF(citA)
 
     qT = [math.floor(qA[i]*0.6) for i in range(len(qA))]
     #print(qT)
     running = time.time()
     if g == 0:
-        cost, citC, facC = run(citA,qT,distA)
+        facC, citC, cost = run(citA,qT,distA)
     else:
-        cost, citC, facC = guess(citA,qT,distA)
+        facC, citC, cost = guess(citA,qT,distA)
 
-    #printF(citA, facC, citC, distA)
+    printF(citA, facC, citC, distA)
     print(cost)
     print("Runtime: ", time.time()-running)
     print("Total time: ", time.time()-start)
