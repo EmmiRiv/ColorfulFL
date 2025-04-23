@@ -42,6 +42,9 @@ class CityFacility:
     def make_outlier(self):
         self.color = 0
 
+    def unmake_outlier(self):
+        self.color = self.orig_color
+
     def set_assignment(self, j):
         self.assignment = j
 
@@ -72,6 +75,9 @@ class City:
 
     def make_outlier(self):
         self.color = 0
+    
+    def unmake_outlier(self):
+        self.color = self.orig_color
 
     def set_freeze(self, a):
         self.freeze = a

@@ -113,15 +113,11 @@ def compute_cost(fac, cit, dist):
     cost = 0
     for j in range(fac[-1]):
         if fac[j].open:
-            print(j, fac[j].cost)
             cost += fac[j].cost
             for i in fac[j].cities:
                 cost += dist[j][i]
-                print(" ", i, cit[i].orig_color, dist[j][i])
                 q[cit[i].orig_color] += 1
-            print()
-    print(q)
-    return cost
+    return cost, q
 
 
 def color_done(col, cit, cur):
@@ -205,29 +201,41 @@ def small():
 
 def main():
     #small()
-
-    n = int(sys.argv[1])
-    F = float(sys.argv[2])
-    r = float(sys.argv[3])
-    citA, qA, distA = distance_adult(n,F)
+    n = 500
+    citA, qA, distA = distance_adult(n,15)
+    start = time.time()
     timelineA = comb_order_data(distA, citA[-1])
-    m = math.floor(r*min(qA))
-    qT = [math.floor(r*q) for q in qA]
-    run(citA, citA, [m,m], distA, timelineA)
-    costA = compute_cost(citA, citA, distA)
-    print(costA)
-    print("--------")
-    #printCF(citA)
-    """
-    for j in range(citA[-1]):
-        citA[j].unuse()
-        citA[j].make_outlier()
+    print("Sort edges:", time.time()-start)
+    print()
 
-    #printCF(citA)
+    for k in range(1,10):
+        r = k/10
+        m = math.floor(r*min(qA))
+        qT = [math.floor(r*q) for q in qA]
 
-    run(citA, citA, [2*m], distA, timelineA)
-    costA = compute_cost(citA, citA, distA)
-    print(costA)
-    #printCF(citA)
-    """
+        start = time.time()
+        run(citA, citA, [m,m], distA, timelineA)
+        costA, qC = compute_cost(citA, citA, distA)
+        print("Fair cost:",costA)
+        print(qC)
+        print(time.time()-start)
+        print()
+        #printCF(citA)
+        for j in range(citA[-1]):
+            citA[j].unuse()
+            citA[j].make_outlier()
+
+        #printCF(citA)
+        
+        start = time.time()
+        run(citA, citA, [2*m], distA, timelineA)
+        costA, qC = compute_cost(citA, citA, distA)
+        print("Outlier cost:",costA)
+        print(qC)
+        print(time.time()-start)
+        print("--------")
+
+        for j in range(citA[-1]):
+            citA[j].unuse()
+            citA[j].unmake_outlier()
 main()
