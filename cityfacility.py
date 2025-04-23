@@ -1,48 +1,17 @@
 class CityFacility:
     def __init__(self, color, cost):
         self.color = color
-        self.orig = cost
-        self.current = cost
-        self.lstC = []
+        self.cost = cost
+        self.contributors = []
         self.cities = []
         self.covered = False
-        self.isFac = False
+        self.open = False
+        self.orig_color = color
+        self.assignment = -1
+        self.freeze = -1
 
     def __str__(self):
-        return f'CityFacility({self.orig},{self.covered},{self.isFac},{self.cities})'
-
-    def cover(self, q):
-        if not self.covered:
-            q[self.color] -= 1
-            self.covered = True
-
-    def uncover(self):
-        self.covered = False
-
-    def setClosest(self, i):
-        self.closest = i
-
-    def used(self):
-        self.current = 0
-        self.isFac = True
-
-    def unuse(self):
-        self.current = self.orig
-        self.cities = []
-        self.isFac = False
-
-
-class City:
-    def __init__(self, c):
-        self.next = {}
-        self.color = c
-        self.covered = False
-
-    def __str__(self):
-        return f'City({self.covered},{self.color})'
-
-    def setNext(self, j, new):
-        self.next[j] = new
+        return f'CityFacility({self.orig_color},{self.covered},{self.open},{self.cities})'
 
     def cover(self):
         self.covered = True
@@ -50,18 +19,74 @@ class City:
     def uncover(self):
         self.covered = False
 
+    def open_fac(self):
+        self.open = True
+
+    def unuse(self):
+        self.cities = []
+        self.open = False
+        self.covered = False
+        self.contributors = []
+        self.assignment = -1
+        self.freeze = -1
+
+    def add_contr(self, i):
+        self.contributors.append(i)
+
+    def add_city(self, i):
+        self.cities.append(i)
+
+    def remove_city(self,i):
+        self.cities.remove(i)
+
+    def make_outlier(self):
+        self.color = 0
+
+    def set_assignment(self, j):
+        self.assignment = j
+
+    def set_freeze(self, a):
+        self.freeze = a
+
+class City:
+    def __init__(self, c):
+        self.color = c
+        self.covered = False
+        self.assignment = -1
+        self.orig_color = c
+        self.freeze = -1
+
+    def __str__(self):
+        return f'City({self.covered},{self.orig_color},{self.assignment})'
+
+    def cover(self):
+        self.covered = True
+
+    def uncover(self):
+        self.covered = False
+        self.assignment = -1
+        self.freeze = -1
+
+    def set_assignment(self, j):
+        self.assignment = j
+
+    def make_outlier(self):
+        self.color = 0
+
+    def set_freeze(self, a):
+        self.freeze = a
+
 
 class Facility:
     def __init__(self, f):
         self.cost = f
         self.cities = []
-        self.closest = -1
-        self.orig = f
         self.contributors = []
         self.open = False
+        self.current = f
 
     def __str__(self):
-        return f'Facility({self.cost},{self.contributors})'
+        return f'Facility({self.cost},{self.open},{self.cities})'
 
     def setClosest(self, i):
         self.closest = i
@@ -72,17 +97,18 @@ class Facility:
     def add_city(self, i):
         self.cities.append(i)
 
+    def remove_city(self, i):
+        self.cities.remove(i)
+
     def open_fac(self):
         self.open = True
 
-    def payment(self, delta):
-        self.cost -= delta
 
     def used(self):
         self.cost = 0
 
     def unuse(self):
-        self.cost = self.orig
+        self.current = self.cost
         self.cities = []
         self.contributors = []
         self.open = False

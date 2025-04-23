@@ -130,48 +130,59 @@ def color_done(col, cit, cur):
             cit[i].cover()
             cit[i].set_freeze(cur)
 
-def open_facJ(fac, j, cit, q, cur):
+def open_facJ(fac, j, cit, q, dist, cur):
     fac[j].open_fac()
     for contr in fac[j].contributors:
-        if not cit[contr].covered:
-            cit[contr].cover()
-            cit[contr].set_assignment(j)
+        city = cit[contr]
+        if city.covered and city.assignment != -1 and dist[city.assignment][contr] - dist[j][contr] > 0:
+            fac[city.assignment].remove_city(contr)
+            city.set_assignment(j)
             fac[j].add_city(contr)
-            col = cit[contr].color
+        if not city.covered:
+            city.cover()
+            city.set_assignment(j)
+            fac[j].add_city(contr)
+            col = city.color
             q[col] -= 1
             if q[col] <= 0:
                 color_done(col, cit, cur)
 
+
+
+
 def update(fac, cit, q, dist, c, f):
     cur = dist[f][c]
-    if not cit[c].covered:
-        if fac[f].open:
-            fac[f].add_city(c)
-            cit[c].cover()
-            cit[c].set_assignment(f)
-            col = cit[c].color
-            q[col] -= 1
-            if q[col] <= 0:
-                color_done(col, cit, cur)
-        else:
-            fac[f].add_contr(c)
+    if not cit[c].covered and fac[f].open:
+        fac[f].add_city(c)
+        cit[c].cover()
+        cit[c].set_assignment(f)
+        col = cit[c].color
+        q[col] -= 1
+        if q[col] <= 0:
+            color_done(col, cit, cur)
+    elif not fac[f].open:
+        fac[f].add_contr(c)
+
 
     for j in range(fac[-1]):
         if not fac[j].open:
             payment = 0
             for contr in fac[j].contributors:
-                if not cit[contr].covered:
+                city = cit[contr]
+                if not city.covered:
                     payment += (cur - dist[j][contr])
-                elif cit[contr].assignment == -1:
-                    payment += (cur - cit[contr].freeze)
+                elif city.assignment != -1:
+                    payment += max([0, (dist[city.assignment][contr]-dist[j][contr])])
+                else:
+                    payment += (cur - city.freeze)
                 if payment >= fac[j].cost:
-                    open_facJ(fac, j, cit, q, cur)
+                    open_facJ(fac, j, cit, q, dist, cur)
                     break
+
 
     if max(q) <= 0:
         return False
     return True
-
 
 
 def run(cit, fac, q, dist, timeline):
@@ -182,7 +193,6 @@ def run(cit, fac, q, dist, timeline):
         go = update(fac, cit, q, dist, c1, f1)
         if not go:
             break
-
 
 def small():
     cit, fac, q, dist = little_data()
@@ -217,17 +227,6 @@ def main():
     costA = compute_cost(citA, citA, distA)
     print(costA)
     print("--------")
-    #printCF(citA)
-    """
-    for j in range(citA[-1]):
-        citA[j].unuse()
-        citA[j].make_outlier()
 
-    #printCF(citA)
 
-    run(citA, citA, [2*m], distA, timelineA)
-    costA = compute_cost(citA, citA, distA)
-    print(costA)
-    #printCF(citA)
-    """
 main()
