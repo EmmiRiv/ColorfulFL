@@ -5,7 +5,7 @@ using Markdown
 using InteractiveUtils
 
 # ╔═╡ 42cf5872-57b1-11f0-2532-596c35d8a5d2
-using CSV, Convex, Printf
+using CSV, Convex, SCS, Printf, SparseArrays, LinearAlgebra
 
 # ╔═╡ 23d536ab-3b51-49d2-a2f7-73051319a0f8
 n = 5
@@ -14,7 +14,7 @@ n = 5
 fl = CSV.File(open("datasets/adult.ds");limit=n)
 
 # ╔═╡ 580fc4c1-e402-4b2c-bab3-b1336602a53c
-fl[1].d1
+eps = 0.2
 
 # ╔═╡ 19a9a392-3994-4983-854c-711083e263ec
 function l2(v1,v2)
@@ -24,6 +24,27 @@ function l2(v1,v2)
 	end
 	return sqrt(d)
 end
+
+# ╔═╡ bc1f2add-ac36-4c91-a62d-9285bc139d98
+groups = Dict()
+
+# ╔═╡ b99c92d9-aeb1-49a6-a1c7-3f67ce96a834
+status = Dict() #1:outlier 2:uncovered 3:covered
+
+# ╔═╡ 60f73ae1-21be-409b-abce-bf576b1c1e0c
+oG = [2,1]
+
+# ╔═╡ 6409904a-148c-4b48-b89e-8f088563bd3b
+costs = Dict()
+
+# ╔═╡ 31c45864-94b0-4de5-b43d-75033aa70742
+isOpen = Dict()
+
+# ╔═╡ 6ec2b4b5-9d74-472e-b249-d85872e6fc18
+contributors = Dict()
+
+# ╔═╡ 51fd4532-1c94-4bf7-a2e2-7717118f1da0
+cities = Dict()
 
 # ╔═╡ f5e86388-34a2-4c19-a093-d869a9ad29ca
 F = [2,4]
@@ -38,6 +59,10 @@ function process()
 
 	for i in F
 		push!(Fpos, [fl[i].d1, fl[i].d2, fl[i].d3, fl[i].d4, fl[i].d5, fl[i].d6])
+		costs[i] = 1
+		isOpen[i] = false
+		contributors[i] = []
+		cities[i] = []
 	end
 
 
@@ -48,6 +73,14 @@ function process()
 			push!(jdist, l2(jpos, Fpos[i_ind]))
 		end
 		push!(dist, jdist)
+
+		if fl[j].c2 == "Male"
+			groups[j] = 1
+		elseif fl[j].c2 == "Female"
+			groups[j] = 2
+		end
+
+		status[j] = 2
 	end
 	return dist
 		
@@ -56,38 +89,190 @@ end
 # ╔═╡ fc7f8c72-aff2-4e60-a91b-d043c03b5d42
 dist = process()
 
+# ╔═╡ 324e816b-a396-4833-aebe-abfc7b3f6c30
+om = 2
+
 # ╔═╡ ea3d3b57-c37d-4a2d-9c9a-6d50e49f7eca
 function genArrays()
 	rw = []
 	cl = []
 	dt = []
-	ub = []
-	fOpt = []
+	A = spzeros(n+n*m+om, n+n*m+m)
+	b = zeros(n*m+n+om)
+	f = zeros(n*m+m+n)
 
-	for j in 1:n
+	#go by row
+	for j in 1:n #sum_i x_ij + z_j >= 1
 		for i in 1:m
-			push!(rw, j)
-			push!(cl, j*m + i)
-			push!(dt, -1)
+			A[j,(j-1)*m+i] = -1
 		end
-		push!(ub, -1)
+		A[j,m*n+j] = -1
+
+		b[j] = -1
 	end
-	for j in 1:n
+	
+	for j in 1:n #x_ij <= y_i
 		for i in 1:m
+			A[n+(j-1)*m+i,(j-1)*m+i] = 1
+
+			A[n+(j-1)*m+i,m*n+n+i] = -1
+		end
+	end
+
+	for g in 1:om #sum_{j in C_g}z_j <= l_g
+		for j in 1:n
+			if groups[j] == g
+				A[n+n*m+g,n*m+j] = 1
+			end
+		end
+		b[n+n*m+g] = oG[g]
+	end
+
+	#make fOPT
+	for j in 1:n #sum_j sum_i d_ij x_ij
+		for i in 1:m
+			f[(j-1)*m+i] = dist[j][i]
+		end
+	end
+
+	#sum_j 0z_j
+
+
+	for i in 1:m #sum_i f_i y_i
+		f[n*m+n+i] = costs[F[i]]
+	end
+
+	return A, b, f
+		
+end
+
+# ╔═╡ b504c4b5-42b4-4ff6-bb92-6d19a8a3ed2f
+A, b, fOpt = genArrays()
+
+# ╔═╡ f18213f3-f01b-442a-a7df-43de7a0cdd6d
+x = Variable(m*n+m+n)
+
+# ╔═╡ 7d4a6884-43c1-4e99-9abf-6b4ed49743aa
+constraints = [A*x<=b, x>=0, x<=1]
+
+# ╔═╡ 1b283cc8-fbde-4d0e-bd41-9a014858f5fd
+problem = minimize(dot(fOpt,x), constraints)
+
+# ╔═╡ f3b51e1e-6c9a-4a5e-bc22-c8fd457582f9
+solve!(problem, SCS.Optimizer)
+
+# ╔═╡ c815feb9-e955-4668-873f-e594034c446a
+zVec = x.value[m*n+1:m*n+n]
+
+# ╔═╡ 01cfb554-1e07-4e7c-8e96-c1d18e55a75b
+function cleaning()
+	p = []
+	for j in 1:n
+		if zVec[j] >= 1-eps
+			status[j] = 1
+		else
+			push!(p,j)
+		end
+	end
+	return p
+end
+
+# ╔═╡ ad1c3900-739b-4aed-8a79-fb12bab5d252
+pCov = cleaning()
+
+# ╔═╡ 8fe2900f-21a2-49e8-b317-0e9f9c434302
+nUP = size(pCov)[1]
+
+# ╔═╡ dd63288f-8cf3-42c2-a32c-c969ef53c106
+function makeTimeline()
+	tl = []
+	for j in 1:nUP
+		for i in 1:m
+			push!(tl, [j,i]) #facility, client index
+		end
+	end
+	sort!(tl, by = x -> dist[x[1]][x[2]])
+	return tl
+end
+
+# ╔═╡ acffd0ad-b2aa-44d6-aa18-49a96e15be5e
+timeline = makeTimeline()
+
+# ╔═╡ 21095385-460f-4309-bc0a-de8eee78e6bb
+function openFac(i0)
+	isOpen[i0] = true
+	for j in contributors[i0]
+		if status[j] == 2
+			status[j] = 3
+			push!(cities[i0], j)
 		end
 	end
 end
+
+# ╔═╡ 14bbc3db-1dd3-49dd-afcd-637cdd9367fa
+function event(ind0, jin0)
+	i0 = F[ind0]
+	j0 = pCov[jin0]
+	if status[j0] == 2 && isOpen[i0]
+		status[j0] = 3
+		push!(cities[i0], j0)
+	elseif status[j0] == 2 && !isOpen[i0]
+		push!(contributors[i0], j0)
+	end
+
+	t = dist[j0][ind0]
+
+	for ind in 1:m #facility index
+		i = F[ind]
+		if !isOpen[i]
+			cont = 0
+			for j in contributors[i]
+				if status[j] == 2
+					cont += t - dist[j][ind0]
+				end
+			end
+			if cont >= costs[i]
+				openFac(i)
+			end
+		end
+	end
+
+	for j in 1:nUP
+		if status[pCov[j]] == 2
+			return false
+		end
+	end
+	return true
+end
+	
+
+# ╔═╡ 4689e604-2545-4e0f-b03b-e59fea29de41
+function increment()
+	for e in timeline
+		done = event(e[2],e[1]) #facility, client index
+		if done
+			break
+		end
+	end
+end
+
+# ╔═╡ bf7fe14e-7231-4751-8e86-cacbe461daa0
+increment()
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Convex = "f65535da-76fb-5f13-bab9-19810c17039a"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+SCS = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 
 [compat]
 CSV = "~0.10.15"
 Convex = "~0.16.4"
+SCS = "~2.1.0"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -96,7 +281,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "f4182dcb2a93990cf24719fa92980dc5369daee5"
+project_hash = "6a5aa1540407331b3cd05b1875471612d5d57ed1"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -298,6 +483,12 @@ git-tree-sha1 = "70f582b446a1c3ad82cf87e62b878668beef9d13"
 uuid = "40e66cde-538c-5869-a4ad-c39174c6795b"
 version = "0.10.1"
 
+[[deps.LLVMOpenMP_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "eb62a3deb62fc6d8822c0c4bef73e4412419c5d8"
+uuid = "1d63c593-3942-5779-bab2-d838dc0a180e"
+version = "18.1.8+0"
+
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 version = "1.11.0"
@@ -359,6 +550,12 @@ git-tree-sha1 = "9b8215b1ee9e78a293f99797cd31375471b2bcae"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
 version = "1.1.3"
 
+[[deps.OpenBLAS32_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
+git-tree-sha1 = "ece4587683695fe4c5f20e990da0ed7e83c351e7"
+uuid = "656ef2d0-ae68-5445-9ca0-591084a874a2"
+version = "0.3.29+0"
+
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
@@ -417,6 +614,26 @@ version = "1.11.0"
 deps = ["SHA"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 version = "1.11.0"
+
+[[deps.SCS]]
+deps = ["MathOptInterface", "PrecompileTools", "SCS_jll", "SparseArrays"]
+git-tree-sha1 = "4aed85dec0209d638c241c34160999eaaf07965a"
+uuid = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"
+version = "2.1.0"
+
+    [deps.SCS.extensions]
+    SCSSCS_GPU_jllExt = ["SCS_GPU_jll"]
+    SCSSCS_MKL_jllExt = ["SCS_MKL_jll"]
+
+    [deps.SCS.weakdeps]
+    SCS_GPU_jll = "af6e375f-46ec-5fa0-b791-491b0dfa44a4"
+    SCS_MKL_jll = "3f2553a9-4106-52be-b7dd-865123654657"
+
+[[deps.SCS_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "LLVMOpenMP_jll", "Libdl", "OpenBLAS32_jll"]
+git-tree-sha1 = "902cc4e42ecca21bbd74babf899b2a5b12add323"
+uuid = "f4f2fc5b-1d94-523c-97ea-2ab488bedf4b"
+version = "3.2.7+0"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
@@ -539,10 +756,33 @@ version = "5.11.0+0"
 # ╠═23d536ab-3b51-49d2-a2f7-73051319a0f8
 # ╠═580fc4c1-e402-4b2c-bab3-b1336602a53c
 # ╠═19a9a392-3994-4983-854c-711083e263ec
+# ╠═bc1f2add-ac36-4c91-a62d-9285bc139d98
+# ╠═b99c92d9-aeb1-49a6-a1c7-3f67ce96a834
+# ╠═60f73ae1-21be-409b-abce-bf576b1c1e0c
+# ╠═6409904a-148c-4b48-b89e-8f088563bd3b
+# ╠═31c45864-94b0-4de5-b43d-75033aa70742
+# ╠═6ec2b4b5-9d74-472e-b249-d85872e6fc18
+# ╠═51fd4532-1c94-4bf7-a2e2-7717118f1da0
 # ╠═17f4098e-c56c-4a64-8919-35ba75467c6a
 # ╠═fc7f8c72-aff2-4e60-a91b-d043c03b5d42
 # ╠═f5e86388-34a2-4c19-a093-d869a9ad29ca
 # ╠═912059f6-5074-42cf-b2d2-c8d33fa95b03
+# ╠═324e816b-a396-4833-aebe-abfc7b3f6c30
 # ╠═ea3d3b57-c37d-4a2d-9c9a-6d50e49f7eca
+# ╠═b504c4b5-42b4-4ff6-bb92-6d19a8a3ed2f
+# ╠═f18213f3-f01b-442a-a7df-43de7a0cdd6d
+# ╠═1b283cc8-fbde-4d0e-bd41-9a014858f5fd
+# ╠═7d4a6884-43c1-4e99-9abf-6b4ed49743aa
+# ╠═f3b51e1e-6c9a-4a5e-bc22-c8fd457582f9
+# ╠═c815feb9-e955-4668-873f-e594034c446a
+# ╠═01cfb554-1e07-4e7c-8e96-c1d18e55a75b
+# ╠═ad1c3900-739b-4aed-8a79-fb12bab5d252
+# ╠═8fe2900f-21a2-49e8-b317-0e9f9c434302
+# ╠═dd63288f-8cf3-42c2-a32c-c969ef53c106
+# ╠═acffd0ad-b2aa-44d6-aa18-49a96e15be5e
+# ╠═4689e604-2545-4e0f-b03b-e59fea29de41
+# ╠═14bbc3db-1dd3-49dd-afcd-637cdd9367fa
+# ╠═21095385-460f-4309-bc0a-de8eee78e6bb
+# ╠═bf7fe14e-7231-4751-8e86-cacbe461daa0
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
