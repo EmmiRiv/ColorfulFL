@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,16 @@ using InteractiveUtils
 using CSV, Convex, SCS, Printf, SparseArrays, LinearAlgebra
 
 # ╔═╡ 2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
-fC = CSV.File(open("subsets/adult-236-36.csv"))
+#fC = CSV.File(open("subsets/adult-236-36.csv"))
 
 # ╔═╡ e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
-fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
+#fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
+
+# ╔═╡ 86ab41ff-f003-4966-875e-5a23f757018a
+fC = CSV.File(open("datasets/adult.ds");limit=200)
+
+# ╔═╡ 4ee4207f-98cf-4f0e-a2a9-04749e351a5d
+fF = CSV.File(open("datasets/adult.ds");limit=20)
 
 # ╔═╡ 19a9a392-3994-4983-854c-711083e263ec
 function l2(v1,v2)
@@ -72,7 +78,7 @@ end
 dist, n, m, gC, groupsF, groupsO = process()
 
 # ╔═╡ 60f73ae1-21be-409b-abce-bf576b1c1e0c
-outG = [floor(0.1*l) for l in gC]
+outG = [floor(0.4*l) for l in gC]
 
 # ╔═╡ 8da79ed9-dc7c-4d9c-b545-35f2831054bf
 outL = [sum(outG)]
@@ -284,6 +290,9 @@ costF, facF, censF = runPD(fZ)
 # ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
 costO, facO, censO = runPD(oZ)
 
+# ╔═╡ b327473c-47d9-4f64-8804-30d7e30fd7a4
+#compare to "failed" PD alg
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -304,7 +313,7 @@ SCS = "~2.1.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "6a5aa1540407331b3cd05b1875471612d5d57ed1"
 
@@ -589,7 +598,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+2"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -779,6 +788,8 @@ version = "5.11.0+0"
 # ╠═42cf5872-57b1-11f0-2532-596c35d8a5d2
 # ╠═2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
 # ╠═e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
+# ╠═86ab41ff-f003-4966-875e-5a23f757018a
+# ╠═4ee4207f-98cf-4f0e-a2a9-04749e351a5d
 # ╠═19a9a392-3994-4983-854c-711083e263ec
 # ╠═6409904a-148c-4b48-b89e-8f088563bd3b
 # ╠═c3f15175-e36c-45d4-8a23-8745b0d04b97
@@ -801,5 +812,6 @@ version = "5.11.0+0"
 # ╠═d16dff45-2a6b-489b-b13b-e49fb5a4f95a
 # ╠═b7262318-f543-4804-b588-b7268e1df6f1
 # ╠═3a6b682a-7b30-42cf-988a-1a73d5e4af3b
+# ╠═b327473c-47d9-4f64-8804-30d7e30fd7a4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

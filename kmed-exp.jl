@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -8,7 +8,10 @@ using InteractiveUtils
 using Printf, CSV, Statistics
 
 # ╔═╡ fb0aa260-a0e2-45ea-9cdc-88ce959aca8b
-fC = CSV.File(open("subsets/adult-001-15.csv"))
+#fC = CSV.File(open("subsets/adult-001-15.csv"))
+
+# ╔═╡ ad6549b7-9b83-482a-b0af-958823ca1eef
+fC = CSV.File(open("datasets/adult.ds");limit=50)
 
 # ╔═╡ 308bb617-1387-40a7-88de-e41b3e34efff
 function l2(v1,v2)
@@ -265,12 +268,12 @@ end
 
 # ╔═╡ 822d7306-6273-417f-8aca-61adb450c87e
 function k1k2(pens, groups)
-	mIts = 1
+	mIts = 10
 	eps = maximum(pens)
 
 	#initialize
 	low = 0
-	high = maximum(pens) + quants[11] #opening a facility is as expensive as paying the highest penalty and connecting the farthest points, so paying all penalties is better
+	high = n*quants[11] 
 	censL = [j for j in 1:n]
 	kL = n
 	costL = 0
@@ -375,6 +378,7 @@ end
 
 # ╔═╡ 3ab1084a-e304-4cb2-8d02-cc2c5f49307b
 function assign(C, groups, cG)
+	# don't assign everyone; only assign the non-penalty clients
 	oC = zeros(size(cG)[1])
 	st = Dict()
 	ct = Dict()
@@ -456,11 +460,14 @@ function changeCoverage()
 end
 
 # ╔═╡ 2554c16d-c9d8-4540-b5a3-2cc7fcf40388
+# ╠═╡ disabled = true
+#=╠═╡
 changeCoverage()
+  ╠═╡ =#
 
 # ╔═╡ c50e3887-d801-4a69-9cb1-b238186d4614
 function hm()
-	pct = 60
+	pct = 80
 	oG = [trunc(((100-pct)/100)*l) for l in gC]
 	cG = [gC[i]-oG[i] for i in 1:om]
 	outL = [sum(oG)]
@@ -495,7 +502,7 @@ CSV = "~0.10.15"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "76a80bec1fbbf6c69dd4073c8e0ba34cc9409bc6"
 
@@ -717,6 +724,7 @@ version = "5.11.0+0"
 # ╔═╡ Cell order:
 # ╠═8c7e18ba-5ad2-11f0-1618-e18a2c40d0ea
 # ╠═fb0aa260-a0e2-45ea-9cdc-88ce959aca8b
+# ╠═ad6549b7-9b83-482a-b0af-958823ca1eef
 # ╠═a462e641-2069-4052-a4e3-feaebe14e77c
 # ╠═308bb617-1387-40a7-88de-e41b3e34efff
 # ╠═39e32c4a-40b5-4713-8f21-f855959b0001
