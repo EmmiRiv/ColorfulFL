@@ -7,14 +7,11 @@ using InteractiveUtils
 # ╔═╡ 42cf5872-57b1-11f0-2532-596c35d8a5d2
 using CSV, Convex, SCS, Printf, SparseArrays, LinearAlgebra
 
-# ╔═╡ 23d536ab-3b51-49d2-a2f7-73051319a0f8
-n = 5
+# ╔═╡ 2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
+fC = CSV.File(open("subsets/adult-236-36.csv"))
 
-# ╔═╡ 1c1078cc-f26b-4072-916e-450bb427bdf1
-fl = CSV.File(open("datasets/adult.ds");limit=n)
-
-# ╔═╡ 580fc4c1-e402-4b2c-bab3-b1336602a53c
-eps = 0.2
+# ╔═╡ e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
+fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
 
 # ╔═╡ 19a9a392-3994-4983-854c-711083e263ec
 function l2(v1,v2)
@@ -25,75 +22,66 @@ function l2(v1,v2)
 	return sqrt(d)
 end
 
-# ╔═╡ bc1f2add-ac36-4c91-a62d-9285bc139d98
-groups = Dict()
-
-# ╔═╡ b99c92d9-aeb1-49a6-a1c7-3f67ce96a834
-status = Dict() #1:outlier 2:uncovered 3:covered
-
-# ╔═╡ 60f73ae1-21be-409b-abce-bf576b1c1e0c
-oG = [2,1]
-
 # ╔═╡ 6409904a-148c-4b48-b89e-8f088563bd3b
 costs = Dict()
 
-# ╔═╡ 31c45864-94b0-4de5-b43d-75033aa70742
-isOpen = Dict()
-
-# ╔═╡ 6ec2b4b5-9d74-472e-b249-d85872e6fc18
-contributors = Dict()
-
-# ╔═╡ 51fd4532-1c94-4bf7-a2e2-7717118f1da0
-cities = Dict()
-
-# ╔═╡ f5e86388-34a2-4c19-a093-d869a9ad29ca
-F = [2,4]
-
-# ╔═╡ 912059f6-5074-42cf-b2d2-c8d33fa95b03
-m = size(F)[1]
+# ╔═╡ c3f15175-e36c-45d4-8a23-8745b0d04b97
+recallID = Dict()
 
 # ╔═╡ 17f4098e-c56c-4a64-8919-35ba75467c6a
 function process()
 	Fpos = []
 	dist = []
+	gC = [0,0]
+	groupsF = Dict()
+	groupsO = Dict()
 
-	for i in F
-		push!(Fpos, [fl[i].d1, fl[i].d2, fl[i].d3, fl[i].d4, fl[i].d5, fl[i].d6])
-		costs[i] = 1
-		isOpen[i] = false
-		contributors[i] = []
-		cities[i] = []
+	iind = 0
+	for rwi in fF
+		iind += 1
+		push!(Fpos, [rwi.d1, rwi.d2, rwi.d3, rwi.d4, rwi.d5, rwi.d6])
+		costs[iind] = 1
 	end
 
-
-	for j in 1:n
+	jind = 0
+	for rwj in fC
+		jind += 1
+		recallID[jind] = rwj.id
 		jdist = []
-		jpos = [fl[j].d1, fl[j].d2, fl[j].d3, fl[j].d4, fl[j].d5, fl[j].d6]
-		for i_ind in 1:m
-			push!(jdist, l2(jpos, Fpos[i_ind]))
+		jpos = [rwj.d1, rwj.d2, rwj.d3, rwj.d4, rwj.d5, rwj.d6]
+		for iP in Fpos
+			push!(jdist, l2(jpos, iP))
 		end
 		push!(dist, jdist)
 
-		if fl[j].c2 == "Male"
-			groups[j] = 1
-		elseif fl[j].c2 == "Female"
-			groups[j] = 2
+		if rwj.c2 == "Male"
+			c = 1
+		elseif rwj.c2 == "Female"
+			c = 2
 		end
-
-		status[j] = 2
+		groupsF[jind] = c
+		groupsO[jind] = 1
+		gC[c] += 1
+	
 	end
-	return dist
+	return dist, jind, size(Fpos)[1], gC, groupsF, groupsO
 		
 end
 
 # ╔═╡ fc7f8c72-aff2-4e60-a91b-d043c03b5d42
-dist = process()
+dist, n, m, gC, groupsF, groupsO = process()
+
+# ╔═╡ 60f73ae1-21be-409b-abce-bf576b1c1e0c
+outG = [floor(0.1*l) for l in gC]
+
+# ╔═╡ 8da79ed9-dc7c-4d9c-b545-35f2831054bf
+outL = [sum(outG)]
 
 # ╔═╡ 324e816b-a396-4833-aebe-abfc7b3f6c30
-om = 2
+om = size(gC)[1]
 
 # ╔═╡ ea3d3b57-c37d-4a2d-9c9a-6d50e49f7eca
-function genArrays()
+function genArrays(groups, out)
 	rw = []
 	cl = []
 	dt = []
@@ -102,7 +90,8 @@ function genArrays()
 	f = zeros(n*m+m+n)
 
 	#go by row
-	for j in 1:n #sum_i x_ij + z_j >= 1
+	#sum_i x_ij + z_j >= 1
+	for j in 1:n 
 		for i in 1:m
 			A[j,(j-1)*m+i] = -1
 		end
@@ -110,8 +99,9 @@ function genArrays()
 
 		b[j] = -1
 	end
-	
-	for j in 1:n #x_ij <= y_i
+
+	#x_ij <= y_i
+	for j in 1:n 
 		for i in 1:m
 			A[n+(j-1)*m+i,(j-1)*m+i] = 1
 
@@ -119,17 +109,19 @@ function genArrays()
 		end
 	end
 
-	for g in 1:om #sum_{j in C_g}z_j <= l_g
+	#sum_{j in C_g}z_j <= l_g
+	for g in 1:size(out)[1]
 		for j in 1:n
 			if groups[j] == g
 				A[n+n*m+g,n*m+j] = 1
 			end
 		end
-		b[n+n*m+g] = oG[g]
+		b[n+n*m+g] = out[g]
 	end
 
 	#make fOPT
-	for j in 1:n #sum_j sum_i d_ij x_ij
+	#sum_j sum_i d_ij x_ij
+	for j in 1:n 
 		for i in 1:m
 			f[(j-1)*m+i] = dist[j][i]
 		end
@@ -137,56 +129,51 @@ function genArrays()
 
 	#sum_j 0z_j
 
-
-	for i in 1:m #sum_i f_i y_i
-		f[n*m+n+i] = costs[F[i]]
+	#sum_i f_i y_i
+	for i in 1:m 
+		f[n*m+n+i] = costs[i]
 	end
 
 	return A, b, f
 		
 end
 
-# ╔═╡ b504c4b5-42b4-4ff6-bb92-6d19a8a3ed2f
-A, b, fOpt = genArrays()
+# ╔═╡ 580fc4c1-e402-4b2c-bab3-b1336602a53c
+eps = 0.2
 
-# ╔═╡ f18213f3-f01b-442a-a7df-43de7a0cdd6d
-x = Variable(m*n+m+n)
-
-# ╔═╡ 7d4a6884-43c1-4e99-9abf-6b4ed49743aa
-constraints = [A*x<=b, x>=0, x<=1]
-
-# ╔═╡ 1b283cc8-fbde-4d0e-bd41-9a014858f5fd
-problem = minimize(dot(fOpt,x), constraints)
-
-# ╔═╡ f3b51e1e-6c9a-4a5e-bc22-c8fd457582f9
-solve!(problem, SCS.Optimizer)
-
-# ╔═╡ c815feb9-e955-4668-873f-e594034c446a
-zVec = x.value[m*n+1:m*n+n]
+# ╔═╡ f83df1c6-c65b-4d15-b3f6-e6079bc64dc1
+function solveLP(groups, out)
+	A, b, f = genArrays(groups, out)
+	x = Variable(m*n+m+n)
+	constraints = [A*x<=b, x>=0, x<=1]
+	problem = minimize(dot(f,x), constraints)
+	solve!(problem, SCS.Optimizer)
+	z = x.value[m*n+1:m*n+n]
+	OPTval = problem.optval
+	return z, OPTval
+end
 
 # ╔═╡ 01cfb554-1e07-4e7c-8e96-c1d18e55a75b
-function cleaning()
+function cleaning(zVec)
+	status = Dict()
 	p = []
+	lEps = zeros(om)
 	for j in 1:n
 		if zVec[j] >= 1-eps
 			status[j] = 1
+			lEps[groupsF[j]] += 1
 		else
 			push!(p,j)
+			status[j] = 2
 		end
 	end
-	return p
+	return p, lEps, status
 end
 
-# ╔═╡ ad1c3900-739b-4aed-8a79-fb12bab5d252
-pCov = cleaning()
-
-# ╔═╡ 8fe2900f-21a2-49e8-b317-0e9f9c434302
-nUP = size(pCov)[1]
-
 # ╔═╡ dd63288f-8cf3-42c2-a32c-c969ef53c106
-function makeTimeline()
+function makeTimeline(nF)
 	tl = []
-	for j in 1:nUP
+	for j in 1:nF
 		for i in 1:m
 			push!(tl, [j,i]) #facility, client index
 		end
@@ -195,11 +182,8 @@ function makeTimeline()
 	return tl
 end
 
-# ╔═╡ acffd0ad-b2aa-44d6-aa18-49a96e15be5e
-timeline = makeTimeline()
-
 # ╔═╡ 21095385-460f-4309-bc0a-de8eee78e6bb
-function openFac(i0)
+function openFac(i0, isOpen, contributors, cities, status)
 	isOpen[i0] = true
 	for j in contributors[i0]
 		if status[j] == 2
@@ -210,8 +194,7 @@ function openFac(i0)
 end
 
 # ╔═╡ 14bbc3db-1dd3-49dd-afcd-637cdd9367fa
-function event(ind0, jin0)
-	i0 = F[ind0]
+function event(i0, jin0, isOpen, contributors, cities, nUP, pCov, status)
 	j0 = pCov[jin0]
 	if status[j0] == 2 && isOpen[i0]
 		status[j0] = 3
@@ -220,25 +203,24 @@ function event(ind0, jin0)
 		push!(contributors[i0], j0)
 	end
 
-	t = dist[j0][ind0]
+	t = dist[j0][i0]
 
-	for ind in 1:m #facility index
-		i = F[ind]
+	for i in 1:m
 		if !isOpen[i]
 			cont = 0
 			for j in contributors[i]
 				if status[j] == 2
-					cont += t - dist[j][ind0]
+					cont += t - dist[j][i0]
 				end
 			end
 			if cont >= costs[i]
-				openFac(i)
+				openFac(i, isOpen, contributors, cities, status)
 			end
 		end
 	end
 
-	for j in 1:nUP
-		if status[pCov[j]] == 2
+	for j in pCov
+		if status[j] == 2
 			return false
 		end
 	end
@@ -247,17 +229,60 @@ end
 	
 
 # ╔═╡ 4689e604-2545-4e0f-b03b-e59fea29de41
-function increment()
+function increment(timeline, nUP, pCov, status)
+	isOpen = Dict()
+	contributors = Dict()
+	cities = Dict()
+	for i in 1:m
+		isOpen[i] = false
+		contributors[i] = []
+		cities[i] = []
+	end
 	for e in timeline
-		done = event(e[2],e[1]) #facility, client index
+		done = event(e[2],e[1], isOpen, contributors, cities, nUP, pCov, status) #facility, client index
 		if done
 			break
 		end
 	end
+	return cities
 end
 
-# ╔═╡ bf7fe14e-7231-4751-8e86-cacbe461daa0
-increment()
+# ╔═╡ 69e7f2ff-eefc-4fb7-bc46-8b9a4901e62c
+function computeCost(cities)
+	fCost = 0
+	cCost = 0
+	for i in 1:m
+		if size(cities[i])[1] != 0
+			fCost += costs[i]
+			for j in cities[i]
+				cCost += dist[j][i]
+			end
+		end
+	end
+	return fCost, cCost
+end
+
+# ╔═╡ c815feb9-e955-4668-873f-e594034c446a
+fZ, fOPTval = solveLP(groupsF, outG)
+
+# ╔═╡ 93cf0180-9b22-482a-a729-ab448a18f763
+oZ, oOPTval = solveLP(groupsO, outL)
+
+# ╔═╡ d16dff45-2a6b-489b-b13b-e49fb5a4f95a
+function runPD(z)
+	cov, cens, status = cleaning(z)
+	nP = size(cov)[1]
+	tl = makeTimeline(nP)
+	final = increment(tl, nP, cov, status)
+	cF, cC = computeCost(final)
+	return cF+cC, final, cens
+end
+
+# ╔═╡ b7262318-f543-4804-b588-b7268e1df6f1
+costF, facF, censF = runPD(fZ)
+
+# ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
+costO, facO, censO = runPD(oZ)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -752,37 +777,29 @@ version = "5.11.0+0"
 
 # ╔═╡ Cell order:
 # ╠═42cf5872-57b1-11f0-2532-596c35d8a5d2
-# ╠═1c1078cc-f26b-4072-916e-450bb427bdf1
-# ╠═23d536ab-3b51-49d2-a2f7-73051319a0f8
-# ╠═580fc4c1-e402-4b2c-bab3-b1336602a53c
+# ╠═2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
+# ╠═e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
 # ╠═19a9a392-3994-4983-854c-711083e263ec
-# ╠═bc1f2add-ac36-4c91-a62d-9285bc139d98
-# ╠═b99c92d9-aeb1-49a6-a1c7-3f67ce96a834
-# ╠═60f73ae1-21be-409b-abce-bf576b1c1e0c
 # ╠═6409904a-148c-4b48-b89e-8f088563bd3b
-# ╠═31c45864-94b0-4de5-b43d-75033aa70742
-# ╠═6ec2b4b5-9d74-472e-b249-d85872e6fc18
-# ╠═51fd4532-1c94-4bf7-a2e2-7717118f1da0
+# ╠═c3f15175-e36c-45d4-8a23-8745b0d04b97
 # ╠═17f4098e-c56c-4a64-8919-35ba75467c6a
 # ╠═fc7f8c72-aff2-4e60-a91b-d043c03b5d42
-# ╠═f5e86388-34a2-4c19-a093-d869a9ad29ca
-# ╠═912059f6-5074-42cf-b2d2-c8d33fa95b03
+# ╠═60f73ae1-21be-409b-abce-bf576b1c1e0c
+# ╠═8da79ed9-dc7c-4d9c-b545-35f2831054bf
 # ╠═324e816b-a396-4833-aebe-abfc7b3f6c30
 # ╠═ea3d3b57-c37d-4a2d-9c9a-6d50e49f7eca
-# ╠═b504c4b5-42b4-4ff6-bb92-6d19a8a3ed2f
-# ╠═f18213f3-f01b-442a-a7df-43de7a0cdd6d
-# ╠═1b283cc8-fbde-4d0e-bd41-9a014858f5fd
-# ╠═7d4a6884-43c1-4e99-9abf-6b4ed49743aa
-# ╠═f3b51e1e-6c9a-4a5e-bc22-c8fd457582f9
-# ╠═c815feb9-e955-4668-873f-e594034c446a
+# ╠═580fc4c1-e402-4b2c-bab3-b1336602a53c
+# ╠═f83df1c6-c65b-4d15-b3f6-e6079bc64dc1
 # ╠═01cfb554-1e07-4e7c-8e96-c1d18e55a75b
-# ╠═ad1c3900-739b-4aed-8a79-fb12bab5d252
-# ╠═8fe2900f-21a2-49e8-b317-0e9f9c434302
 # ╠═dd63288f-8cf3-42c2-a32c-c969ef53c106
-# ╠═acffd0ad-b2aa-44d6-aa18-49a96e15be5e
 # ╠═4689e604-2545-4e0f-b03b-e59fea29de41
 # ╠═14bbc3db-1dd3-49dd-afcd-637cdd9367fa
 # ╠═21095385-460f-4309-bc0a-de8eee78e6bb
-# ╠═bf7fe14e-7231-4751-8e86-cacbe461daa0
+# ╠═69e7f2ff-eefc-4fb7-bc46-8b9a4901e62c
+# ╠═c815feb9-e955-4668-873f-e594034c446a
+# ╠═93cf0180-9b22-482a-a729-ab448a18f763
+# ╠═d16dff45-2a6b-489b-b13b-e49fb5a4f95a
+# ╠═b7262318-f543-4804-b588-b7268e1df6f1
+# ╠═3a6b682a-7b30-42cf-988a-1a73d5e4af3b
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
