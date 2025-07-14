@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -8,16 +8,10 @@ using InteractiveUtils
 using CSV, Convex, SCS, Printf, SparseArrays, LinearAlgebra
 
 # ╔═╡ 2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
-#fC = CSV.File(open("subsets/adult-236-36.csv"))
+fC = CSV.File(open("subsets/adult-429-65.csv"))
 
 # ╔═╡ e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
-#fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
-
-# ╔═╡ 86ab41ff-f003-4966-875e-5a23f757018a
-fC = CSV.File(open("datasets/adult.ds");limit=200)
-
-# ╔═╡ 4ee4207f-98cf-4f0e-a2a9-04749e351a5d
-fF = CSV.File(open("datasets/adult.ds");limit=20)
+fF = CSV.File(open("subsets/adult-429-65-fac.csv"))
 
 # ╔═╡ 19a9a392-3994-4983-854c-711083e263ec
 function l2(v1,v2)
@@ -145,7 +139,7 @@ function genArrays(groups, out)
 end
 
 # ╔═╡ 580fc4c1-e402-4b2c-bab3-b1336602a53c
-eps = 0.2
+eps = 0.05
 
 # ╔═╡ f83df1c6-c65b-4d15-b3f6-e6079bc64dc1
 function solveLP(groups, out)
@@ -271,6 +265,19 @@ end
 # ╔═╡ c815feb9-e955-4668-873f-e594034c446a
 fZ, fOPTval = solveLP(groupsF, outG)
 
+# ╔═╡ b2a05789-f782-4065-b6eb-44e72f2d8012
+begin
+	zzz = [0,0]
+	for zv in fZ
+		if zv <= 0.01
+			zzz[1]+=1
+		elseif zv >= 0.99
+			zzz[2]+=1
+		end
+	end
+	print(zzz)
+end
+
 # ╔═╡ 93cf0180-9b22-482a-a729-ab448a18f763
 oZ, oOPTval = solveLP(groupsO, outL)
 
@@ -313,7 +320,7 @@ SCS = "~2.1.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "6a5aa1540407331b3cd05b1875471612d5d57ed1"
 
@@ -598,7 +605,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -788,15 +795,11 @@ version = "5.11.0+0"
 # ╠═42cf5872-57b1-11f0-2532-596c35d8a5d2
 # ╠═2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
 # ╠═e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
-# ╠═86ab41ff-f003-4966-875e-5a23f757018a
-# ╠═4ee4207f-98cf-4f0e-a2a9-04749e351a5d
 # ╠═19a9a392-3994-4983-854c-711083e263ec
 # ╠═6409904a-148c-4b48-b89e-8f088563bd3b
 # ╠═c3f15175-e36c-45d4-8a23-8745b0d04b97
 # ╠═17f4098e-c56c-4a64-8919-35ba75467c6a
 # ╠═fc7f8c72-aff2-4e60-a91b-d043c03b5d42
-# ╠═60f73ae1-21be-409b-abce-bf576b1c1e0c
-# ╠═8da79ed9-dc7c-4d9c-b545-35f2831054bf
 # ╠═324e816b-a396-4833-aebe-abfc7b3f6c30
 # ╠═ea3d3b57-c37d-4a2d-9c9a-6d50e49f7eca
 # ╠═580fc4c1-e402-4b2c-bab3-b1336602a53c
@@ -807,6 +810,9 @@ version = "5.11.0+0"
 # ╠═14bbc3db-1dd3-49dd-afcd-637cdd9367fa
 # ╠═21095385-460f-4309-bc0a-de8eee78e6bb
 # ╠═69e7f2ff-eefc-4fb7-bc46-8b9a4901e62c
+# ╠═b2a05789-f782-4065-b6eb-44e72f2d8012
+# ╠═60f73ae1-21be-409b-abce-bf576b1c1e0c
+# ╠═8da79ed9-dc7c-4d9c-b545-35f2831054bf
 # ╠═c815feb9-e955-4668-873f-e594034c446a
 # ╠═93cf0180-9b22-482a-a729-ab448a18f763
 # ╠═d16dff45-2a6b-489b-b13b-e49fb5a4f95a

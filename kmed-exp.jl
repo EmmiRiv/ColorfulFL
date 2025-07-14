@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,7 @@ using InteractiveUtils
 using Printf, CSV, Statistics
 
 # ╔═╡ fb0aa260-a0e2-45ea-9cdc-88ce959aca8b
-#fC = CSV.File(open("subsets/adult-001-15.csv"))
-
-# ╔═╡ ad6549b7-9b83-482a-b0af-958823ca1eef
-fC = CSV.File(open("datasets/adult.ds");limit=50)
+fC = CSV.File(open("subsets/adult-50-15.csv"))
 
 # ╔═╡ 308bb617-1387-40a7-88de-e41b3e34efff
 function l2(v1,v2)
@@ -79,6 +76,12 @@ quants = findStats()
 
 # ╔═╡ 7b28d394-b759-4f69-ace6-60d03e6bf900
 om = size(gC)[1]
+
+# ╔═╡ 2554c16d-c9d8-4540-b5a3-2cc7fcf40388
+# ╠═╡ disabled = true
+#=╠═╡
+changeCoverage()
+  ╠═╡ =#
 
 # ╔═╡ 7895cb7b-0f01-4642-944e-a3482a2a0f36
 """
@@ -153,7 +156,7 @@ om = size(gC)[1]
 function takeCensus(status)	
 	cen = zeros(om)	
 	for j in 1:n		
-		if status[j] == 2
+		if status[j] == 1
 			cen[groupsF[j]] += 1		
 		end	
 	end	
@@ -176,18 +179,19 @@ end
 timeline = makeTimeline() #1<=2
 
 # ╔═╡ ee621eae-1fed-48fa-8138-51e2dc4e5b70
-function openFac(i0, isOpen, contributors, cities, status, fCost, pens, groups)
+function openFac(i0, isOpen, contributors, cities, status, fCost, pens, groups, assignment)
 	isOpen[i0] = true
 	for j in contributors[i0]
 		if status[j] == 2 || (status[j] == 1 && pens[groups[j]] >= dist[j][i0])
 			status[j] = 3
 			push!(cities[i0], j)
+			assignment[j] = i0
 		end
 	end
 end
 
 # ╔═╡ ed0a737a-d053-48ad-8b3b-5d1b50d9ec5f
-function event(i0, j0, isOpen, contributors, cities, status, fCost, pens, groups)
+function event(i0, j0, isOpen, contributors, cities, status, fCost, pens, groups, assignment)
 	t = dist[j0][i0]
 	
 	if status[j0] == 2 && pens[groups[j0]] <= t
@@ -195,9 +199,11 @@ function event(i0, j0, isOpen, contributors, cities, status, fCost, pens, groups
 	elseif status[j0] == 2 && isOpen[i0]
 		status[j0] = 3
 		push!(cities[i0], j0)
+		assignment[j0] = i0
 	elseif status[j0] == 1 && isOpen[i0] && pens[groups[j0]] >= dist[j0][i0]
 		status[j0] = 3
 		push!(cities[i0], j0)
+		assignment[j0] = i0
 	elseif status[j0] == 2 && !isOpen[i0]
 		push!(contributors[i0], j0)
 	end
@@ -208,10 +214,12 @@ function event(i0, j0, isOpen, contributors, cities, status, fCost, pens, groups
 			for j in contributors[i]
 				if status[j] == 2
 					cont += t - dist[j][i0]
+				elseif status[j] == 1
+					cont += maximum([0,pens[groups[j]] - dist[j][i0]])
 				end
 			end
 			if cont >= fCost
-				openFac(i, isOpen, contributors, cities, status, fCost, pens, groups)
+				openFac(i, isOpen, contributors, cities, status, fCost, pens, groups, assignment)
 			end
 		end
 	end
@@ -231,6 +239,7 @@ function increment(fCost, pens, groups)
 	contributors = Dict()
 	cities = Dict()
 	status = Dict()
+	assignment = Dict()
 	for j in 1:n
 		isOpen[j] = false
 		contributors[j] = []
@@ -238,81 +247,91 @@ function increment(fCost, pens, groups)
 		status[j] = 2
 	end
 	for e in timeline
-		done = event(e[2],e[1], isOpen, contributors, cities, status, fCost, pens, groups) 
+		done = event(e[2],e[1], isOpen, contributors, cities, status, fCost, pens, groups, assignment) 
 		if done
 			break
 		end
-		done = event(e[1],e[2], isOpen, contributors, cities, status, fCost, pens, groups) 
+		done = event(e[1],e[2], isOpen, contributors, cities, status, fCost, pens, groups, assignment) 
 		if done
 			break
 		end
 	end
-	return cities
+	return cities, status, assignment
 end
 
+# ╔═╡ c3d0591a-3213-4101-87ce-a50e71dc1830
+increment(2,[1.5,3],groupsF)
+
 # ╔═╡ e78cfe68-e013-4726-818b-b012859091e9
-function computeCost(cities, fCost)
+function computeFLpensCost(cities, status, f, pens, groups)
 	cost = 0
 	cens = []
 	for i in 1:n
 		if size(cities[i])[1] != 0
-			cost += fCost
 			push!(cens, i)
+			cost += f
 			for j in cities[i]
 				cost += dist[j][i]
 			end
+		elseif status[i] == 1
+			cost += pens[groups[i]]
 		end
+		
 	end
 	return cost, cens
 end
 
 # ╔═╡ 822d7306-6273-417f-8aca-61adb450c87e
 function k1k2(pens, groups)
-	mIts = 10
-	eps = maximum(pens)
+	mIts = 100
+	eps = 3
 
 	#initialize
 	low = 0
 	high = n*quants[11] 
-	censL = [j for j in 1:n]
-	kL = n
-	costL = 0
+	finalL, statusL, assignL = increment(low, pens, groups)
+	costL, censL = computeFLpensCost(finalL, statusL, low, pens, groups)
+	kL = size(censL)[1]
 	if kL == k
-		return true, 0, censL
+		return true, censL, statusL, finalL, assignL
 	end
-	finalH = increment(high, pens, groups)
-	costH, censH = computeCost(finalH, high)
+	finalH, statusH, assignH = increment(high, pens, groups)
+	costH, censH = computeFLpensCost(finalH, statusH, high, pens, groups)
 	kH = size(censH)[1]
 	if kH == k
-		return true, 0, censH
+		return true, censH, statusH, finalH, assignH
 	end
 
 	#averaging loop
 	for _ in 1:mIts
 		mid = (low+high)/2
-		finalM = increment(mid, pens, groups)
-		costM, censM = computeCost(finalM, mid)
+		finalM, statusM, assignM = increment(mid, pens, groups)
+		costM, censM = computeFLpensCost(finalM, statusM, mid, pens, groups)
 		kM = size(censM)[1]
 
 		if kM < k
-			if abs(costM-costH) < eps
-				return false, censL, censM
+			if k-kM < eps
+				return false, censL, statusL, assignL, censM, statusM, assignM
 			else
 				high = mid
 				censH = censM
+				statusH = statusM
+				assignH = assignM
 			end
 		elseif kM > k
-			if abs(costM-costL) < eps
-				return false, censM, censH
+			if kM-k < eps
+				return false, censM, statusM, assignM, censH, statusH, assignH
 			else
 				low = mid
 				censL = censM
+				statusL = statusM
+				assignL = assignM
 			end
 		else 
-			return true, costM, censM
+			return true, censM, statusM, finalM, assignM
 		end
 	end
-	return false, censL, censH
+	return false, censL, statusL, assignL, censH, statusH, assignH
 			
 end
 
@@ -320,6 +339,7 @@ end
 function findBpr(A, B)
 	Bpr = []
 	BminBpr = copy(B)
+	close = Dict()
 
 	for c in A
 		distC = dist[c]
@@ -331,6 +351,7 @@ function findBpr(A, B)
 				mni = i
 			end
 		end
+		close[c] = mni
 		if !in(mni, Bpr)
 			append!(Bpr, mni)
 			deleteat!(BminBpr, findall(x->x==mni, BminBpr))
@@ -344,23 +365,28 @@ function findBpr(A, B)
 			deleteat!(BminBpr, ind)
 		end
 	end
-	return Bpr, BminBpr
+	return Bpr, BminBpr, close
 			
 end
 
+# ╔═╡ 00b26289-d8f8-4195-a0b7-cf6f0d29eb4c
+k1k2([4.571428571428571, 16.0],groupsF)
+
 # ╔═╡ c5730edc-3c52-46ee-bfd4-5df284f66cd4
 function findCenters(pens, groups)
-	fl, B, A = k1k2(pens, groups)
+	ret = k1k2(pens, groups)
 
-	if fl
-		return A
+	if ret[1]
+		return ret #flag, C, status, final, assignment
 	end
+
+	B, statB, assignB, A, statA, assignA = ret[2:end]
 	
 	a = (size(B)[1]-k)/(size(B)[1]-size(A)[1])
 	b = (k-size(A)[1])/(size(B)[1]-size(A)[1])
-	Bpr, BminBpr = findBpr(A, B)
+	Bpr, BminBpr, close = findBpr(A, B)
 
-	if rand()<a
+	if rand() < a
 		C = A
 	else
 		C = Bpr
@@ -373,48 +399,81 @@ function findCenters(pens, groups)
 	end
 
 	
-	return C
+	return false, C, statA, assignA, statB, assignB, close
 end
 
+# ╔═╡ 23517bf2-d4c1-4b4d-89fe-7f52bcc6085e
+findCenters([0.07142857142857142, 0.25],groupsF)
+
 # ╔═╡ 3ab1084a-e304-4cb2-8d02-cc2c5f49307b
-function assign(C, groups, cG)
+function assign2(C, statA, assignA, statB, assignB, close, pens, groups)
 	# don't assign everyone; only assign the non-penalty clients
-	oC = zeros(size(cG)[1])
 	st = Dict()
 	ct = Dict()
 	cost = 0
-	for j in 1:n
-		st[j] = 2
-	end
 	for c in C
 		ct[c] = []
 	end
-	tl = []
+	
 	for j in 1:n
-		for i in C
-			push!(tl, [j,i])
+		if statA[j] == 1 && statB[j] == 1
+			st[j] = 1
+			cost += pens[groups[j]]
+		elseif statA[j] == 1 && statB[j] == 3
+			cB = assignB[j]
+			if in(cB, C)
+				st[j] = 3
+				append!(ct[cB], j)
+				cost += dist[j][cB]
+			else
+				st[j] = 1
+				cost += pens[groups[j]]
+			end
+		elseif statA[j] == 3 && statB[j] == 1
+			cA = assignA[j]
+			if in(cA, C)
+				st[j] = 3
+				append!(ct[cA], j)
+				cost += dist[j][cA]
+			else
+				st[j] = 1
+				cost += pens[groups[j]]
+			end
+		else
+			st[j] = 3
+			cA = assignA[j]
+			cB = assignB[j]
+			if in(cB, C)
+				append!(ct[cB], j)
+				cost += dist[j][cB]
+			elseif in(cA, C)
+				append!(ct[cA], j)
+				cost += dist[j][cA]
+			else
+				append!(ct[close[cA]], j)
+				cost += dist[j][close[cA]]
+			end
 		end
 	end
-	sort!(tl, by = x -> dist[x[1]][x[2]])
-	
-	for e in tl
-		cen = e[2]
-		cli = e[1]
-		if st[cli] == 2
-			st[cli] = 3
-			push!(ct[cen], cli)
-			oC[groups[cli]] += 1
-			cost += dist[cen][cli]
-		end
-		if oC == cG
-			break
-		end
-	end	
+				
 	return st, ct, cost
 end
 
+# ╔═╡ 5774ad35-c9c2-4e80-b1ec-00adf364fd9b
+function assign1(statC, assignment, pens, groups)
+	cost = 0
+	for j in 1:n
+		if statC[j] == 3
+			cost += dist[j][assignment[j]]
+		else
+			cost += pens[groups[j]]
+		end
+	end
+	return cost
+end
+
 # ╔═╡ 0b267dab-823f-4987-96ef-c40552e97a70
-function loopOPT(groups, oG, cG)
+function loopOPT(groups, oG)
 	eps = om/gam
 	guess = 1
 	maxG = quants[11]*(n-sum(oG))
@@ -424,8 +483,14 @@ function loopOPT(groups, oG, cG)
 
 	while guess < maxG
 		pens = [guess/(gam*l) for l in oG]
-		cens = findCenters(pens, groups)
-		st, final, cst = assign(cens, groups, cG)
+		ret = findCenters(pens, groups)
+		if ret[1]
+			C, statC, final, assignment = ret[2:end]
+			cst = assign1(statC, assignment, pens, groups)
+		else
+			C, statA, assignA, statB, assignB, close = ret[2:end]
+			st, final, cst = assign2(C, statA, assignA, statB, assignB, close, pens, groups)
+		end
 		if cst < minC
 			minC = cst
 			minF = final
@@ -459,21 +524,13 @@ function changeCoverage()
 	end
 end
 
-# ╔═╡ 2554c16d-c9d8-4540-b5a3-2cc7fcf40388
-# ╠═╡ disabled = true
-#=╠═╡
-changeCoverage()
-  ╠═╡ =#
-
 # ╔═╡ c50e3887-d801-4a69-9cb1-b238186d4614
 function hm()
 	pct = 80
 	oG = [trunc(((100-pct)/100)*l) for l in gC]
-	cG = [gC[i]-oG[i] for i in 1:om]
 	outL = [sum(oG)]
-	outC = [n-outL[1]]
-	fC, fF, fS = loopOPT(groupsF, oG, cG)
-	oC, oF, oS = loopOPT(groupsO, outL, outC)
+	fC, fF, fS = loopOPT(groupsF, oG)
+	oC, oF, oS = loopOPT(groupsO, outL)
 	fCen = takeCensus(fS)
 	oCen = takeCensus(oS)
 	@printf("%d coverage\n", pct)
@@ -485,7 +542,13 @@ function hm()
 end
 
 # ╔═╡ 6d04a139-7b4c-4bea-bf29-623f733b5d9c
+# ╠═╡ disabled = true
+#=╠═╡
 hm()
+  ╠═╡ =#
+
+# ╔═╡ a1e2726e-050c-4439-9430-8cb81427a139
+loopOPT(groupsF,[7,2])
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -502,7 +565,7 @@ CSV = "~0.10.15"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "76a80bec1fbbf6c69dd4073c8e0ba34cc9409bc6"
 
@@ -724,7 +787,6 @@ version = "5.11.0+0"
 # ╔═╡ Cell order:
 # ╠═8c7e18ba-5ad2-11f0-1618-e18a2c40d0ea
 # ╠═fb0aa260-a0e2-45ea-9cdc-88ce959aca8b
-# ╠═ad6549b7-9b83-482a-b0af-958823ca1eef
 # ╠═a462e641-2069-4052-a4e3-feaebe14e77c
 # ╠═308bb617-1387-40a7-88de-e41b3e34efff
 # ╠═39e32c4a-40b5-4713-8f21-f855959b0001
@@ -741,14 +803,19 @@ version = "5.11.0+0"
 # ╠═6d04a139-7b4c-4bea-bf29-623f733b5d9c
 # ╠═baf87245-01cb-4554-b84f-f6cd8f35e429
 # ╠═6bdf13c6-9add-4adc-8712-4a94369ac94b
+# ╠═c3d0591a-3213-4101-87ce-a50e71dc1830
 # ╠═71f14388-f41f-4369-af47-b4fe33afe6ce
 # ╠═ed0a737a-d053-48ad-8b3b-5d1b50d9ec5f
 # ╠═ee621eae-1fed-48fa-8138-51e2dc4e5b70
 # ╠═e78cfe68-e013-4726-818b-b012859091e9
 # ╠═822d7306-6273-417f-8aca-61adb450c87e
 # ╠═11791b86-e878-483d-9541-92a975e9589b
+# ╠═00b26289-d8f8-4195-a0b7-cf6f0d29eb4c
+# ╠═23517bf2-d4c1-4b4d-89fe-7f52bcc6085e
 # ╠═c5730edc-3c52-46ee-bfd4-5df284f66cd4
 # ╠═3ab1084a-e304-4cb2-8d02-cc2c5f49307b
+# ╠═5774ad35-c9c2-4e80-b1ec-00adf364fd9b
 # ╠═0b267dab-823f-4987-96ef-c40552e97a70
+# ╠═a1e2726e-050c-4439-9430-8cb81427a139
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
