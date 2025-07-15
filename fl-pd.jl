@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -67,11 +67,25 @@ end
 # ╔═╡ 1b4ca69e-ba81-4707-88a8-56c87b7b6c9e
 dist, n, m, gC, groupsF, groupsO = process()
 
-# ╔═╡ 1f438678-de83-4fab-9320-a082543d48a9
-outG = [floor(0.8*l) for l in gC]
+# ╔═╡ b00f0a5f-1229-4c55-9dbb-69e63bad6dc8
+st=Dict()
 
 # ╔═╡ 901e8755-050a-4da3-8c2c-236384b56e94
 om = size(gC)[1]
+
+# ╔═╡ 69e93a45-81bc-4549-86e3-dca21303755e
+function takeCensus(status)
+	cens = zeros(om)
+	for j in 1:n
+		if status[j] == 1
+			cens[groupsF[j]] += 1
+		end
+	end
+	return cens
+end
+
+# ╔═╡ 0abac5c8-213f-44c5-9aed-687a0accf972
+takeCensus(st)
 
 # ╔═╡ c5015786-a3f5-4837-bbfa-078baac0d704
 function makeTimeline()
@@ -88,22 +102,18 @@ end
 # ╔═╡ a156439f-2ca5-4600-b8b7-98e4e86c7c58
 tl = makeTimeline()
 
-# ╔═╡ 4f981cd9-d5ec-4d94-8d93-f90a23cfdc62
-status = Dict()
-
 # ╔═╡ 872f4d4e-1275-42d5-b9a4-4bb0a8765d01
 function computeCost(cities)
-	fCost = 0
-	cCost = 0
+	cost = 0
 	for i in 1:m
 		if size(cities[i])[1] != 0
-			fCost += costs[i]
+			cost += costs[i]
 			for j in cities[i]
-				cCost += dist[j][i]
+				cost += dist[j][i]
 			end
 		end
 	end
-	return fCost, cCost
+	return cost
 end
 
 # ╔═╡ 188f6e6d-b7c7-4cee-8c4f-adcd97abc142
@@ -171,7 +181,7 @@ end
 	
 
 # ╔═╡ 4ec79d43-f37d-41ec-9fa1-e8313f2667f7
-function increment(timeline, status, lG, groups)
+function increment(status, lG, groups)
 	isOpen = Dict()
 	contributors = Dict()
 	cities = Dict()
@@ -184,7 +194,7 @@ function increment(timeline, status, lG, groups)
 	for j in 1:n
 		status[j] = 2
 	end
-	for e in timeline
+	for e in tl
 		done = event(e[2],e[1], isOpen, contributors, cities, status, freeze, lG, groups)
 		if done
 			break
@@ -193,11 +203,49 @@ function increment(timeline, status, lG, groups)
 	return cities
 end
 
-# ╔═╡ 127e8d94-37b0-4d2f-a549-d5f35e076b78
-final = increment(tl, status, outG, groupsF)
+# ╔═╡ 4ca11c4f-2ad1-40f5-b9eb-f726c7f95531
+function adjustOut()
+	outlier_cens = []
+	fair_cens = []
+	fcost = []
+	ocost = []
+	fopt = []
+	oopt = []
+	fgoal = []
+	percc = []
+	for p in 0:20
+		#@printf("percent outliers: %d",p)
+		outG = [floor((p/100)*l) for l in gC]
+		covG = [gC[g]-outG[g] for g in 1:om]
+		covOutL = [sum(covG)]
+		statusF = Dict()
+		statusO = Dict()
+		finalF = increment(statusF, copy(covG), groupsF)
+		finalO = increment(statusO, copy(covOutL), groupsO)
+		costF = computeCost(finalF)
+		costO = computeCost(finalO)
+		censO = takeCensus(statusO)
+		push!(outlier_cens,censO)
+		push!(fair_cens,outG)
+		push!(fcost,costF)
+		push!(ocost,costO)
+		push!(percc,p)
+	end
+	print(percc)
+	print(outlier_cens)
+	print(fair_cens)
+	print(ocost)
+	print(fcost)
+end
 
-# ╔═╡ 2d2b038b-c391-4d7d-9028-e12db15c0d3d
-computeCost(final)
+# ╔═╡ 127e8d94-37b0-4d2f-a549-d5f35e076b78
+adjustOut()
+
+# ╔═╡ 1d70c763-5996-4d4b-8d7b-e384ecea5ffa
+f = increment(st, [35,14], groupsF)
+
+# ╔═╡ 7d6cda3d-8985-4271-9ad9-b2af5736960a
+computeCost(f)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -212,7 +260,7 @@ CSV = "~0.10.15"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "d08dbc71628d7eea6366b734ca874621bf576be4"
 
@@ -406,14 +454,17 @@ version = "1.2.13+1"
 # ╠═51ab9d1e-9eeb-4b19-8033-3f792187363c
 # ╠═dc6f6c3f-a830-412e-8156-1297dcc5e811
 # ╠═1b4ca69e-ba81-4707-88a8-56c87b7b6c9e
-# ╠═1f438678-de83-4fab-9320-a082543d48a9
+# ╠═4ca11c4f-2ad1-40f5-b9eb-f726c7f95531
+# ╠═b00f0a5f-1229-4c55-9dbb-69e63bad6dc8
+# ╠═1d70c763-5996-4d4b-8d7b-e384ecea5ffa
+# ╠═0abac5c8-213f-44c5-9aed-687a0accf972
+# ╠═7d6cda3d-8985-4271-9ad9-b2af5736960a
 # ╠═901e8755-050a-4da3-8c2c-236384b56e94
+# ╠═127e8d94-37b0-4d2f-a549-d5f35e076b78
+# ╠═69e93a45-81bc-4549-86e3-dca21303755e
 # ╠═c5015786-a3f5-4837-bbfa-078baac0d704
 # ╠═a156439f-2ca5-4600-b8b7-98e4e86c7c58
-# ╠═4f981cd9-d5ec-4d94-8d93-f90a23cfdc62
-# ╠═127e8d94-37b0-4d2f-a549-d5f35e076b78
 # ╠═872f4d4e-1275-42d5-b9a4-4bb0a8765d01
-# ╠═2d2b038b-c391-4d7d-9028-e12db15c0d3d
 # ╠═4ec79d43-f37d-41ec-9fa1-e8313f2667f7
 # ╠═1391118b-f3c2-411a-a07f-25093a6d3157
 # ╠═1420383e-a76b-46e7-ba19-1a3f3302a60b

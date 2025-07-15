@@ -77,12 +77,6 @@ quants = findStats()
 # ╔═╡ 7b28d394-b759-4f69-ace6-60d03e6bf900
 om = size(gC)[1]
 
-# ╔═╡ 2554c16d-c9d8-4540-b5a3-2cc7fcf40388
-# ╠═╡ disabled = true
-#=╠═╡
-changeCoverage()
-  ╠═╡ =#
-
 # ╔═╡ 7895cb7b-0f01-4642-944e-a3482a2a0f36
 """
 50 coverage
@@ -523,6 +517,12 @@ function changeCoverage()
 		pct += 5
 	end
 end
+
+# ╔═╡ 2554c16d-c9d8-4540-b5a3-2cc7fcf40388
+# ╠═╡ disabled = true
+#=╠═╡
+changeCoverage()
+  ╠═╡ =#
 
 # ╔═╡ c50e3887-d801-4a69-9cb1-b238186d4614
 function hm()
