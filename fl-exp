@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,16 @@ using InteractiveUtils
 using CSV, Convex, SCS, Printf, SparseArrays, LinearAlgebra
 
 # ╔═╡ 2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
-fC = CSV.File(open("subsets/adult-429-65.csv"))
+#fC = CSV.File(open("subsets/adult-236-36.csv"))
+
+# ╔═╡ 7eb232a1-559c-4184-b177-6f93f8481451
+fC = CSV.File(open("subsets/adult-2274-342.csv"))
+
+# ╔═╡ 88b58a56-c32d-444b-94a4-35d031b58dd0
+fF = CSV.File(open("subsets/adult-2274-342-fac.csv"))
 
 # ╔═╡ e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
-fF = CSV.File(open("subsets/adult-429-65-fac.csv"))
+#fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
 
 # ╔═╡ 19a9a392-3994-4983-854c-711083e263ec
 function l2(v1,v2)
@@ -70,12 +76,6 @@ end
 
 # ╔═╡ fc7f8c72-aff2-4e60-a91b-d043c03b5d42
 dist, n, m, gC, groupsF, groupsO = process()
-
-# ╔═╡ 60f73ae1-21be-409b-abce-bf576b1c1e0c
-outG = [floor(0.4*l) for l in gC]
-
-# ╔═╡ 8da79ed9-dc7c-4d9c-b545-35f2831054bf
-outL = [sum(outG)]
 
 # ╔═╡ 324e816b-a396-4833-aebe-abfc7b3f6c30
 om = size(gC)[1]
@@ -262,24 +262,17 @@ function computeCost(cities)
 	return fCost, cCost
 end
 
-# ╔═╡ c815feb9-e955-4668-873f-e594034c446a
-fZ, fOPTval = solveLP(groupsF, outG)
+# ╔═╡ 60f73ae1-21be-409b-abce-bf576b1c1e0c
 
-# ╔═╡ b2a05789-f782-4065-b6eb-44e72f2d8012
-begin
-	zzz = [0,0]
-	for zv in fZ
-		if zv <= 0.01
-			zzz[1]+=1
-		elseif zv >= 0.99
-			zzz[2]+=1
-		end
-	end
-	print(zzz)
-end
+
+# ╔═╡ 8da79ed9-dc7c-4d9c-b545-35f2831054bf
+
+
+# ╔═╡ c815feb9-e955-4668-873f-e594034c446a
+
 
 # ╔═╡ 93cf0180-9b22-482a-a729-ab448a18f763
-oZ, oOPTval = solveLP(groupsO, outL)
+
 
 # ╔═╡ d16dff45-2a6b-489b-b13b-e49fb5a4f95a
 function runPD(z)
@@ -292,10 +285,44 @@ function runPD(z)
 end
 
 # ╔═╡ b7262318-f543-4804-b588-b7268e1df6f1
-costF, facF, censF = runPD(fZ)
+
 
 # ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
-costO, facO, censO = runPD(oZ)
+begin
+	p=5
+	@printf("percent outliers: %d",p)
+	outG = [floor((p/100)*l) for l in gC]
+	outL = [sum(outG)]
+	fZ, fOPTval = solveLP(groupsF, outG)
+	oZ, oOPTval = solveLP(groupsO, outL)
+	costF, facF, censF = runPD(fZ)
+	costO, facO, censO = runPD(oZ)
+	@printf("outlier cost: %f",costO)
+	@printf("fair cost: %f",costF)
+	print(censO,censF,"\n\n")
+end
+
+# ╔═╡ 57b70daa-299a-4bde-9aa3-a11a79ab110b
+function adjustOut()
+	for p in 0:20
+		@printf("percent outliers: %d",p)
+		outG = [floor((p/100)*l) for l in gC]
+		outL = [sum(outG)]
+		fZ, fOPTval = solveLP(groupsF, outG)
+		oZ, oOPTval = solveLP(groupsO, outL)
+		costF, facF, censF = runPD(fZ)
+		costO, facO, censO = runPD(oZ)
+		@printf("outlier cost: %f",costO)
+		@printf("fair cost: %f",costF)
+		print(censO,censF,"\n\n")
+	end
+end
+
+# ╔═╡ 9d07ab7b-0e76-4a41-a89c-ce866be4d4e7
+# ╠═╡ disabled = true
+#=╠═╡
+adjustOut()
+  ╠═╡ =#
 
 # ╔═╡ b327473c-47d9-4f64-8804-30d7e30fd7a4
 #compare to "failed" PD alg
@@ -320,7 +347,7 @@ SCS = "~2.1.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "6a5aa1540407331b3cd05b1875471612d5d57ed1"
 
@@ -605,7 +632,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+2"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -794,6 +821,8 @@ version = "5.11.0+0"
 # ╔═╡ Cell order:
 # ╠═42cf5872-57b1-11f0-2532-596c35d8a5d2
 # ╠═2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
+# ╠═7eb232a1-559c-4184-b177-6f93f8481451
+# ╠═88b58a56-c32d-444b-94a4-35d031b58dd0
 # ╠═e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
 # ╠═19a9a392-3994-4983-854c-711083e263ec
 # ╠═6409904a-148c-4b48-b89e-8f088563bd3b
@@ -810,7 +839,6 @@ version = "5.11.0+0"
 # ╠═14bbc3db-1dd3-49dd-afcd-637cdd9367fa
 # ╠═21095385-460f-4309-bc0a-de8eee78e6bb
 # ╠═69e7f2ff-eefc-4fb7-bc46-8b9a4901e62c
-# ╠═b2a05789-f782-4065-b6eb-44e72f2d8012
 # ╠═60f73ae1-21be-409b-abce-bf576b1c1e0c
 # ╠═8da79ed9-dc7c-4d9c-b545-35f2831054bf
 # ╠═c815feb9-e955-4668-873f-e594034c446a
@@ -818,6 +846,8 @@ version = "5.11.0+0"
 # ╠═d16dff45-2a6b-489b-b13b-e49fb5a4f95a
 # ╠═b7262318-f543-4804-b588-b7268e1df6f1
 # ╠═3a6b682a-7b30-42cf-988a-1a73d5e4af3b
+# ╠═57b70daa-299a-4bde-9aa3-a11a79ab110b
+# ╠═9d07ab7b-0e76-4a41-a89c-ce866be4d4e7
 # ╠═b327473c-47d9-4f64-8804-30d7e30fd7a4
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
