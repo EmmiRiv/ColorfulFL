@@ -4,22 +4,19 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 42cf5872-57b1-11f0-2532-596c35d8a5d2
-using CSV, Convex, SCS, Printf, SparseArrays, LinearAlgebra, Statistics
+# ╔═╡ 78568b20-61c3-11f0-3955-7716abb99af4
+using CSV, Convex, SCS, LinearAlgebra, Statistics, SparseArrays, Printf
 
-# ╔═╡ 2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
+# ╔═╡ 42a1ef8e-d268-442e-8936-ef40115351f9
 fC = CSV.File(open("subsets/adult-50-15.csv"))
 
-# ╔═╡ 7eb232a1-559c-4184-b177-6f93f8481451
-#fC = CSV.File(open("subsets/adult-2274-342.csv"))
-
-# ╔═╡ 88b58a56-c32d-444b-94a4-35d031b58dd0
-#fF = CSV.File(open("subsets/adult-2274-342-fac.csv"))
-
-# ╔═╡ e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
+# ╔═╡ c93d92c2-dde5-4e60-8b41-4c3190d04996
 fF = CSV.File(open("subsets/adult-50-15-fac.csv"))
 
-# ╔═╡ 19a9a392-3994-4983-854c-711083e263ec
+# ╔═╡ 37c41ffb-4313-408a-aefe-f8ed409f0819
+costs = Dict()
+
+# ╔═╡ cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
 function l2(v1,v2)
 	d = 0
 	for i in 1:size(v1)[1]
@@ -28,13 +25,7 @@ function l2(v1,v2)
 	return sqrt(d)
 end
 
-# ╔═╡ 6409904a-148c-4b48-b89e-8f088563bd3b
-costs = Dict()
-
-# ╔═╡ c3f15175-e36c-45d4-8a23-8745b0d04b97
-recallID = Dict()
-
-# ╔═╡ 17f4098e-c56c-4a64-8919-35ba75467c6a
+# ╔═╡ d81cf317-02a7-4db8-afde-686302ff902e
 function process()
 	Fpos = []
 	dist = []
@@ -52,7 +43,6 @@ function process()
 	jind = 0
 	for rwj in fC
 		jind += 1
-		recallID[jind] = rwj.id
 		jdist = []
 		jpos = [rwj.d1, rwj.d2, rwj.d3, rwj.d4, rwj.d5, rwj.d6]
 		for iP in Fpos
@@ -74,10 +64,10 @@ function process()
 		
 end
 
-# ╔═╡ fc7f8c72-aff2-4e60-a91b-d043c03b5d42
+# ╔═╡ cc97092b-1be5-41a8-b4a4-c348c19657a9
 dist, n, m, gC, groupsF, groupsO = process()
 
-# ╔═╡ 81cf0e2a-1a00-4fb5-8095-c6b5aea1dc48
+# ╔═╡ 31464b67-7929-418f-b54a-709c9a1a7e73
 function findStats()
 	qs = [h/10 for h in 0:10]
 	dta = []
@@ -87,13 +77,13 @@ function findStats()
 	return quantile(dta, qs)
 end
 
-# ╔═╡ 73c6dd99-cfa6-4cd7-986c-20570726af66
+# ╔═╡ 23afed56-f19d-429b-b267-9d20e1796972
 quants = findStats()
 
-# ╔═╡ 324e816b-a396-4833-aebe-abfc7b3f6c30
+# ╔═╡ fe989b90-6f8c-4f54-adcc-5a05e2ea5d7c
 om = size(gC)[1]
 
-# ╔═╡ ea3d3b57-c37d-4a2d-9c9a-6d50e49f7eca
+# ╔═╡ 17032a3e-617a-4168-a255-85760d4bb3be
 function genArrays(groups, out)
 	rw = []
 	cl = []
@@ -151,10 +141,7 @@ function genArrays(groups, out)
 		
 end
 
-# ╔═╡ 580fc4c1-e402-4b2c-bab3-b1336602a53c
-eps = 0.05
-
-# ╔═╡ f83df1c6-c65b-4d15-b3f6-e6079bc64dc1
+# ╔═╡ 215dfd10-4d04-482f-bb41-4ef20e8b1869
 function solveLP(groups, out)
 	A, b, f = genArrays(groups, out)
 	x = Variable(m*n+m+n)
@@ -166,235 +153,39 @@ function solveLP(groups, out)
 	return x.value, OPTval
 end
 
-# ╔═╡ 01cfb554-1e07-4e7c-8e96-c1d18e55a75b
-function cleaning(zVec)
+# ╔═╡ 837649ae-3d14-4db2-b3f3-8a3b3d9912bd
+xzy, op = solveLP(groupsF,[7,2])
+
+# ╔═╡ fe9a2596-4eaf-4219-a8f5-b1b69ab7d811
+eps = 0.1
+
+# ╔═╡ 10fba2b5-19c8-4b69-b43b-cd64fdf850db
+function round()
 	status = Dict()
-	lEps = zeros(om)
+	facilities = Dict()
+
 	for j in 1:n
-		if zVec[j] >= 1-eps
-			status[j] = 1
-			lEps[groupsF[j]] += 1
-		else
-			status[j] = 2
+		status[j] = 2
+	end
+
+	for i in 1:m
+		if xzy[m*n+n+i] > 1 - eps
+			facilities[i] = []
 		end
 	end
-	return lEps, status
-end
-
-# ╔═╡ dd63288f-8cf3-42c2-a32c-c969ef53c106
-function makeTimeline()
-	tl = []
+	
 	for j in 1:n
 		for i in 1:m
-			push!(tl, [j,i]) #facility, client index
-		end
-	end
-	sort!(tl, by = x -> dist[x[1]][x[2]])
-	return tl
-end
-
-# ╔═╡ 21095385-460f-4309-bc0a-de8eee78e6bb
-function openFac(i0, isOpen, contributors, cities, status)
-	isOpen[i0] = true
-	for j in contributors[i0]
-		if status[j] == 2
-			status[j] = 3
-			push!(cities[i0], j)
-		end
-	end
-end
-
-# ╔═╡ 14bbc3db-1dd3-49dd-afcd-637cdd9367fa
-function event(i0, j0, isOpen, contributors, cities, status)
-	if status[j0] == 2 && isOpen[i0]
-		status[j0] = 3
-		push!(cities[i0], j0)
-	elseif status[j0] == 2 && !isOpen[i0]
-		push!(contributors[i0], j0)
-	end
-
-	t = dist[j0][i0]
-
-	for i in 1:m
-		if !isOpen[i]
-			cont = 0
-			for j in contributors[i]
-				if status[j] == 2
-					cont += t - dist[j][i0]
-				end
-			end
-			if cont >= costs[i]
-				openFac(i, isOpen, contributors, cities, status)
+			if xzy[(j-1)*m+i] > 1 - eps
+				status[j] = 3
+				push!(facilities[i],j)
 			end
 		end
-	end
-
-	for j in 1:n
-		if status[j] == 2
-			return false
+		if xzy[m*n+j] > 1 - eps
+			status[j] = 1
 		end
 	end
-	return true
 end
-	
-
-# ╔═╡ 69e7f2ff-eefc-4fb7-bc46-8b9a4901e62c
-function computeCost(cities)
-	fCost = 0
-	cCost = 0
-	for i in 1:m
-		if size(cities[i])[1] != 0
-			fCost += costs[i]
-			for j in cities[i]
-				cCost += dist[j][i]
-			end
-		end
-	end
-	return fCost, cCost
-end
-
-# ╔═╡ c4c8184f-823a-41ec-b470-32082ee32aac
-tl = makeTimeline()
-
-# ╔═╡ 4689e604-2545-4e0f-b03b-e59fea29de41
-function increment(status)
-	isOpen = Dict()
-	contributors = Dict()
-	cities = Dict()
-	for i in 1:m
-		isOpen[i] = false
-		contributors[i] = []
-		cities[i] = []
-	end
-	for e in tl
-		done = event(e[2],e[1], isOpen, contributors, cities, status) #facility, client index
-		if done
-			break
-		end
-	end
-	return cities
-end
-
-# ╔═╡ d16dff45-2a6b-489b-b13b-e49fb5a4f95a
-function runPD(z)
-	cens, status = cleaning(z)
-	final = increment(status)
-	cF, cC = computeCost(final)
-	return cF+cC, final, cens
-end
-
-# ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	p=5
-	@printf("percent outliers: %d",p)
-	outG = [floor((p/100)*l) for l in gC]
-	outL = [sum(outG)]
-	fZ, fOPTval = solveLP(groupsF, outG)
-	oZ, oOPTval = solveLP(groupsO, outL)
-	costF, facF, censF = runPD(fZ)
-	costO, facO, censO = runPD(oZ)
-	@printf("outlier cost: %f",costO)
-	@printf("fair cost: %f",costF)
-	print(censO,censF,"\n\n")
-end
-  ╠═╡ =#
-
-# ╔═╡ ebc431ed-be29-44d2-8e9c-70618056a88c
-fffZ, fffOPTval = solveLP(groupsF, [7,2])
-
-# ╔═╡ 87512083-c150-4c0d-89d6-579fa0ff164a
-fffZ[1:m*n]
-
-# ╔═╡ 0b36ae06-c965-46bd-afad-9652da2b6dda
-fffZ[m*n+1:m*n+n]
-
-# ╔═╡ 730dc205-9463-4873-9bed-77f383020fae
-fffZ[m*n+n+1:end]
-
-# ╔═╡ 57b70daa-299a-4bde-9aa3-a11a79ab110b
-function adjustOut()
-	outlier_cens = []
-	fair_cens = []
-	fcost = []
-	ocost = []
-	fopt = []
-	oopt = []
-	fgoal = []
-	percc = []
-	for p in 0:20
-		#@printf("percent outliers: %d",p)
-		outG = [floor((p/100)*l) for l in gC]
-		outL = [sum(outG)]
-		fZ, fOPTval = solveLP(groupsF, outG)
-		oZ, oOPTval = solveLP(groupsO, outL)
-		costF, facF, censF = runPD(fZ)
-		costO, facO, censO = runPD(oZ)
-		# @printf("outlier cost: %f\n",costO)
-		# @printf("fair cost: %f\n",costF)
-		# print(censO,censF,"\n\n")
-		# print([oOPTval, fOPTval])
-		push!(outlier_cens,censO)
-		push!(fair_cens,censF)
-		push!(fcost,costF)
-		push!(ocost,costO)
-		push!(fopt,fOPTval)
-		push!(oopt,oOPTval)
-		push!(fgoal,outG)
-		push!(percc,p)
-	end
-	print(percc)
-	print(outlier_cens)
-	print(fair_cens)
-	print(ocost)
-	print(fcost)
-	print(oopt)
-	print(fopt)
-	print(fgoal)
-end
-
-# ╔═╡ 3c19d5ec-aace-4861-aa1f-b2a3ed652e81
-# ╠═╡ disabled = true
-#=╠═╡
-@time begin
-	gg = copy(gC)
-	ggff = [0.1*g for g in gg]
-	ggoo = [sum(ggff)]
-	ffZ, ffOPTval = solveLP(groupsF, ggff, 3)
-	cc,fff,cccc = runPD(ffZ)
-	ooZ, ooOPTval = solveLP(groupsO, ggoo, 3)
-	coo, foo, censoo = runPD(ooZ)
-	print(cc,"\n",coo,"\n",cccc,censoo)
-end
-  ╠═╡ =#
-
-# ╔═╡ b327473c-47d9-4f64-8804-30d7e30fd7a4
-# ╠═╡ disabled = true
-#=╠═╡
-adjustOut()
-  ╠═╡ =#
-
-# ╔═╡ 9c5ee192-3bee-466d-bff4-c1234de1d5f2
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	p = 5
-	#@printf("percent outliers: %d",p)
-	outG = [0,0]
-	outL = [sum(outG)]
-	fZ, fOPTval = solveLP(groupsF, outG)
-	oZ, oOPTval = solveLP(groupsO, outL)
-	costF, facF, censF = runPD(fZ)
-	costO, facO, censO = runPD(oZ)
-	@printf("outlier cost: %f\n",costO)
-	@printf("fair cost: %f\n",costF)
-	print(censO,censF,"\n\n")
-	print([oOPTval, fOPTval])
-	print("\n",facF,"\n",facO)
-
-end
-  ╠═╡ =#
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -411,6 +202,7 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 CSV = "~0.10.15"
 Convex = "~0.16.4"
 SCS = "~2.1.0"
+Statistics = "~1.11.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -419,7 +211,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "635367831545fff4de9167eff35f9f4dc5ff766a"
+project_hash = "cd99a7ff9bbab2b5dfaade13bc933afbab0b7c6b"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -889,38 +681,20 @@ version = "5.11.0+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═42cf5872-57b1-11f0-2532-596c35d8a5d2
-# ╠═2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
-# ╠═7eb232a1-559c-4184-b177-6f93f8481451
-# ╠═88b58a56-c32d-444b-94a4-35d031b58dd0
-# ╠═e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
-# ╠═19a9a392-3994-4983-854c-711083e263ec
-# ╠═6409904a-148c-4b48-b89e-8f088563bd3b
-# ╠═c3f15175-e36c-45d4-8a23-8745b0d04b97
-# ╠═17f4098e-c56c-4a64-8919-35ba75467c6a
-# ╠═fc7f8c72-aff2-4e60-a91b-d043c03b5d42
-# ╠═81cf0e2a-1a00-4fb5-8095-c6b5aea1dc48
-# ╠═73c6dd99-cfa6-4cd7-986c-20570726af66
-# ╠═324e816b-a396-4833-aebe-abfc7b3f6c30
-# ╠═ea3d3b57-c37d-4a2d-9c9a-6d50e49f7eca
-# ╠═580fc4c1-e402-4b2c-bab3-b1336602a53c
-# ╠═f83df1c6-c65b-4d15-b3f6-e6079bc64dc1
-# ╠═01cfb554-1e07-4e7c-8e96-c1d18e55a75b
-# ╠═dd63288f-8cf3-42c2-a32c-c969ef53c106
-# ╠═4689e604-2545-4e0f-b03b-e59fea29de41
-# ╠═14bbc3db-1dd3-49dd-afcd-637cdd9367fa
-# ╠═21095385-460f-4309-bc0a-de8eee78e6bb
-# ╠═69e7f2ff-eefc-4fb7-bc46-8b9a4901e62c
-# ╠═c4c8184f-823a-41ec-b470-32082ee32aac
-# ╠═d16dff45-2a6b-489b-b13b-e49fb5a4f95a
-# ╠═3a6b682a-7b30-42cf-988a-1a73d5e4af3b
-# ╠═ebc431ed-be29-44d2-8e9c-70618056a88c
-# ╠═87512083-c150-4c0d-89d6-579fa0ff164a
-# ╠═0b36ae06-c965-46bd-afad-9652da2b6dda
-# ╠═730dc205-9463-4873-9bed-77f383020fae
-# ╠═57b70daa-299a-4bde-9aa3-a11a79ab110b
-# ╠═3c19d5ec-aace-4861-aa1f-b2a3ed652e81
-# ╠═b327473c-47d9-4f64-8804-30d7e30fd7a4
-# ╠═9c5ee192-3bee-466d-bff4-c1234de1d5f2
+# ╠═78568b20-61c3-11f0-3955-7716abb99af4
+# ╠═42a1ef8e-d268-442e-8936-ef40115351f9
+# ╠═c93d92c2-dde5-4e60-8b41-4c3190d04996
+# ╠═37c41ffb-4313-408a-aefe-f8ed409f0819
+# ╠═cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
+# ╠═d81cf317-02a7-4db8-afde-686302ff902e
+# ╠═cc97092b-1be5-41a8-b4a4-c348c19657a9
+# ╠═31464b67-7929-418f-b54a-709c9a1a7e73
+# ╠═23afed56-f19d-429b-b267-9d20e1796972
+# ╠═fe989b90-6f8c-4f54-adcc-5a05e2ea5d7c
+# ╠═17032a3e-617a-4168-a255-85760d4bb3be
+# ╠═215dfd10-4d04-482f-bb41-4ef20e8b1869
+# ╠═837649ae-3d14-4db2-b3f3-8a3b3d9912bd
+# ╠═fe9a2596-4eaf-4219-a8f5-b1b69ab7d811
+# ╠═10fba2b5-19c8-4b69-b43b-cd64fdf850db
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
