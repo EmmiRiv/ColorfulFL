@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -363,6 +363,7 @@ fair_cost = [75.5727329611652, 75.5727329611652, 75.5727329611652, 102.281874651
 """
 
 # ╔═╡ 9c5ee192-3bee-466d-bff4-c1234de1d5f2
+#=╠═╡
 begin
 	p = 5
 	#@printf("percent outliers: %d",p)
@@ -379,6 +380,7 @@ begin
 	print("\n",facF,"\n",facO)
 
 end
+  ╠═╡ =#
 
 # ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
 # ╠═╡ disabled = true
