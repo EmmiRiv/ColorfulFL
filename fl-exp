@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -283,24 +283,6 @@ function runPD(z)
 	return cF+cC, final, cens
 end
 
-# ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	p=5
-	@printf("percent outliers: %d",p)
-	outG = [floor((p/100)*l) for l in gC]
-	outL = [sum(outG)]
-	fZ, fOPTval = solveLP(groupsF, outG)
-	oZ, oOPTval = solveLP(groupsO, outL)
-	costF, facF, censF = runPD(fZ)
-	costO, facO, censO = runPD(oZ)
-	@printf("outlier cost: %f",costO)
-	@printf("fair cost: %f",costF)
-	print(censO,censF,"\n\n")
-end
-  ╠═╡ =#
-
 # ╔═╡ ebc431ed-be29-44d2-8e9c-70618056a88c
 fffZ, fffOPTval = solveLP(groupsF, [7,2])
 
@@ -373,6 +355,24 @@ end
 # ╠═╡ disabled = true
 #=╠═╡
 adjustOut()
+  ╠═╡ =#
+
+# ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	p=5
+	@printf("percent outliers: %d",p)
+	outG = [floor((p/100)*l) for l in gC]
+	outL = [sum(outG)]
+	fZ, fOPTval = solveLP(groupsF, outG)
+	oZ, oOPTval = solveLP(groupsO, outL)
+	costF, facF, censF = runPD(fZ)
+	costO, facO, censO = runPD(oZ)
+	@printf("outlier cost: %f",costO)
+	@printf("fair cost: %f",costF)
+	print(censO,censF,"\n\n")
+end
   ╠═╡ =#
 
 # ╔═╡ 9c5ee192-3bee-466d-bff4-c1234de1d5f2

@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -153,16 +153,15 @@ function solveLP(groups, out)
 	return x.value, OPTval
 end
 
-# ╔═╡ 837649ae-3d14-4db2-b3f3-8a3b3d9912bd
-xzy, op = solveLP(groupsF,[7,2])
-
 # ╔═╡ fe9a2596-4eaf-4219-a8f5-b1b69ab7d811
 eps = 0.1
 
 # ╔═╡ 10fba2b5-19c8-4b69-b43b-cd64fdf850db
-function round()
+function round(xzy)
 	status = Dict()
 	facilities = Dict()
+	uncov = copy(gC)
+	outliers = zeros(om)
 
 	for j in 1:n
 		status[j] = 2
@@ -179,13 +178,68 @@ function round()
 			if xzy[(j-1)*m+i] > 1 - eps
 				status[j] = 3
 				push!(facilities[i],j)
+				uncov[groupsF[j]] -= 1
 			end
 		end
 		if xzy[m*n+j] > 1 - eps
 			status[j] = 1
+			outliers[groupsF[j]] += 1
 		end
 	end
+	return status, facilities, uncov, outliers
 end
+
+# ╔═╡ 33359369-fa76-4760-b009-3c95037501f0
+function computeCost(facilities)
+	cost = 0
+	for (fac, clis) in facilities
+		cost += costs[fac]
+		for cli in clis
+			cost += dist[cli][fac]
+		end
+	end
+	return cost
+end
+
+# ╔═╡ 0209a683-4795-4215-9d12-0e06a2ff7b5e
+function adjustOut()
+	outlier_out = []
+	fair_out = []
+	fcost = []
+	ocost = []
+	outlier_uncov = []
+	fair_uncov = []
+	for p in 0:20
+		#@printf("percent outliers: %d",p)
+		outG = [floor((p/100)*l) for l in gC]
+		outL = [sum(outG)]
+		xzyF, opF = solveLP(groupsF,outG)
+		xzyO, opO = solveLP(groupsO,outL)
+		stF, facF, uncovF, outliersF = round(xzyF)
+		stO, facO, uncovO, outliersO = round(xzyO)
+		costF = computeCost(facF)
+		costO = computeCost(facO)
+		# @printf("outlier cost: %f\n",costO)
+		# @printf("fair cost: %f\n",costF)
+		# print(censO,censF,"\n\n")
+		# print([oOPTval, fOPTval])
+		push!(outlier_out,outliersO)
+		push!(fair_out,outliersF)
+		push!(fcost,costF)
+		push!(ocost,costO)
+		push!(outlier_uncov, uncovO)
+		push!(fair_uncov, uncovF)
+	end
+	print("outlier_uncov=",outlier_uncov)
+	print("\n\n fair_uncov=",fair_uncov)
+	print("\n\n outlier_cost=",ocost)
+	print("\n\n fair_cost=",fcost)
+	print("\n\n outlier_out=",outlier_out)
+	print("\n\n fair_out=",fair_out)
+end
+
+# ╔═╡ 2223c02c-47e3-481f-bb59-bdfd8cc8a739
+adjustOut()
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -202,16 +256,15 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 CSV = "~0.10.15"
 Convex = "~0.16.4"
 SCS = "~2.1.0"
-Statistics = "~1.11.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "cd99a7ff9bbab2b5dfaade13bc933afbab0b7c6b"
+project_hash = "635367831545fff4de9167eff35f9f4dc5ff766a"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -494,7 +547,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]
@@ -693,8 +746,10 @@ version = "5.11.0+0"
 # ╠═fe989b90-6f8c-4f54-adcc-5a05e2ea5d7c
 # ╠═17032a3e-617a-4168-a255-85760d4bb3be
 # ╠═215dfd10-4d04-482f-bb41-4ef20e8b1869
-# ╠═837649ae-3d14-4db2-b3f3-8a3b3d9912bd
 # ╠═fe9a2596-4eaf-4219-a8f5-b1b69ab7d811
 # ╠═10fba2b5-19c8-4b69-b43b-cd64fdf850db
+# ╠═33359369-fa76-4760-b009-3c95037501f0
+# ╠═0209a683-4795-4215-9d12-0e06a2ff7b5e
+# ╠═2223c02c-47e3-481f-bb59-bdfd8cc8a739
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

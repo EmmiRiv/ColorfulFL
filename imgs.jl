@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -8,12 +8,28 @@ using InteractiveUtils
 using Plots
 
 # ╔═╡ 734fd244-3fc8-43b2-9c57-bb3098cec8a5
-function plotting(x,y,l,a,t)
+function plotCost(x,y,l,a,t)
 	plot(layout=(1,1))
 
-	for i in 1:2
+	for i in 1:size(y)[1]
 		plot!(x,y[i],linewidth=2,label=l[i])
 	end
+	plot!(x,fill(y[1][1],size(y[1])[1]),linewidth=2,linestyle=:dash, label="full coverage")
+	xlabel!(a[1])
+	ylabel!(a[2])
+	plot!(title=t)
+end
+
+# ╔═╡ 4686a83b-e0ad-4a86-9a76-d3d0d58039bd
+function plotDiscount(x,y,l,a,t)
+	plot(layout=(1,1))
+	std = y[1][1]
+
+	for i in 1:size(y)[1]
+		yp = [100-(y[i][l]/std)*100 for l in 1:size(y[i])[1]]
+		plot!(x,yp,linewidth=2,label=l[i])
+	end
+	plot!(x,x,linewidth=2,linestyle=:dash,label="")
 	xlabel!(a[1])
 	ylabel!(a[2])
 	plot!(title=t)
@@ -42,13 +58,52 @@ begin
 	outlier_optLP = [74.25912774494489, 74.25912774494489, 74.25912774494489, 70.418725964032, 70.418725964032, 70.418725964032, 67.11251630020197, 67.11251630020197, 63.98301281878874, 61.484087609327524, 61.484087609327524, 61.484087609327524, 59.018184235019696, 59.018184235019696, 56.78746469295694, 54.86392675767733, 54.86392675767733, 53.027326582400455, 53.027326582400455, 53.027326582400455, 51.277688318660424]
 	
 	fair_optLP = [74.25941922086423, 74.25941922086423, 74.25941922086423, 70.95297231270577, 70.95297231270577, 70.95297231270577, 67.8226136432644, 67.8226136432644, 63.98246814627185, 61.48406410710341, 61.48406410710341, 61.48406410710341, 59.01866717780947, 59.01866717780947, 56.788128469711836, 54.864088829289294, 54.864088829289294, 53.028492837257495, 53.028492837257495, 53.028492837257495, 51.328082188467775]
+
+	outlier_uncovLP1 = [[0, 0], [0, 0], [0, 0], [0, 1], [0, 1], [0, 1], [1, 1], [1, 1], [2, 1], [3, 1], [3, 1], [3, 1], [4, 1], [4, 1], [5, 1], [5, 2], [5, 2], [6, 2], [6, 2], [6, 2], [7, 5]]
+
+	fair_uncovLP1 = [[0, 0], [0, 0], [0, 0], [1, 0], [1, 0], [1, 0], [2, 0], [2, 0], [2, 1], [3, 1], [3, 1], [3, 1], [4, 1], [4, 1], [5, 1], [5, 2], [5, 2], [6, 2], [6, 2], [6, 2], [7, 2]]
+
+	outlier_costLP1 = [74.25860262885544, 74.25860262885544, 74.25860262885544, 70.41860678016548, 70.41860678016548, 70.41860678016548, 67.11269491672586, 67.11269491672586, 63.983025821728106, 61.48405599849419, 61.48405599849419, 61.48405599849419, 59.01865444580188, 59.01865444580188, 56.78811830739115, 54.864056282366974, 54.864056282366974, 53.02845161645577, 53.02845161645577, 53.02845161645577, 46.08338699869227]
+
+	fair_costLP1 = [74.25860262885544, 74.25860262885544, 74.25860262885544, 70.95269076541584, 70.95269076541584, 70.95269076541584, 67.82302167041809, 67.82302167041809, 63.983025821728106, 61.48405599849419, 61.48405599849419, 61.48405599849419, 59.01865444580188, 59.01865444580188, 56.78811830739115, 54.864056282366974, 54.864056282366974, 53.02845161645577, 53.02845161645577, 53.02845161645577, 51.32725637562451]
+
+	outlier_censLP1 = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 1.0], [0.0, 1.0], [0.0, 1.0], [1.0, 1.0], [1.0, 1.0], [2.0, 1.0], [3.0, 1.0], [3.0, 1.0], [3.0, 1.0], [4.0, 1.0], [4.0, 1.0], [5.0, 1.0], [5.0, 2.0], [5.0, 2.0], [6.0, 2.0], [6.0, 2.0], [6.0, 2.0], [6.0, 2.0]]
+
+	fair_censLP1 = [[0.0, 0.0], [0.0, 0.0], [0.0, 0.0], [1.0, 0.0], [1.0, 0.0], [1.0, 0.0], [2.0, 0.0], [2.0, 0.0], [2.0, 1.0], [3.0, 1.0], [3.0, 1.0], [3.0, 1.0], [4.0, 1.0], [4.0, 1.0], [5.0, 1.0], [5.0, 2.0], [5.0, 2.0], [6.0, 2.0], [6.0, 2.0], [6.0, 2.0], [7.0, 2.0]]
 	
-	yF = [fair_costPD, fair_costLP]
-	labelF = ["primal dual","LP rounding"]
+	yF3 = [fair_costPD, fair_costLP, fair_costLP1]
+	yF2 = [fair_costPD, fair_costLP]
+	yLPPD = [outlier_costLP, outlier_costPD, fair_costLP, fair_costPD]
+	labelF3 = ["primal dual","LP rounding+PD","LP rounding only"]
+	labelF2 = ["primal dual","LP rounding+PD"]
+	labelLPPD = ["LP outlier", "PD outlier", "LP fair", "PD fair"]
 	axisF = ["percent outliers","cost"]
-	titleF = "PD vs LP strats"
+	titleF = "PD vs LP strats, fair outliers"
+	titleLPPD = "Cost of fairness"
 	
-	plotting(perc,yF,labelF,axisF,titleF)
+	axisD = ["percent outliers","percent discount"]
+
+	labelV1 = ["male","female"]
+	axisV1 = ["percent outliers","outlier violation"]
+	titleV1 = "LP fair outlier violation"
+	
+	#plotCost(perc,yF3,labelF3,axisF,titleF)
+	#plotCost(perc, yLPPD, labelLPPD, axisF, titleLPPD)
+	plotDiscount(perc,yF2,labelF2,axisD,titleF)
+	#plotViolation1(perc, fair_censPD, fair_censLP, labelV1, axisV1, titleV1)
+end
+
+# ╔═╡ c0f0abd8-7d98-44b4-9a8f-4b66660ee3bb
+function plotViolation1(x,b,e,l,a,t)
+	plot(layout=(1,1))
+
+	for i in 1:size(b[1])[1]
+		yp = [b[l][i]-e[l][i] for l in 1:size(b)[1]]
+		plot!(x,yp,linewidth=2,label=l[i])
+	end
+	xlabel!(a[1])
+	ylabel!(a[2])
+	plot!(title=t)
 end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
@@ -64,7 +119,7 @@ Plots = "~1.40.13"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "e5ea54724743b90e9989aa3e76021cba564ab36a"
 
@@ -562,7 +617,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -1173,5 +1228,7 @@ version = "1.4.1+2"
 # ╠═674ea773-6575-45cf-a4e4-f3a6f868b26d
 # ╠═3fa37f09-c369-4e2b-a563-c6a6acf56c84
 # ╠═734fd244-3fc8-43b2-9c57-bb3098cec8a5
+# ╠═4686a83b-e0ad-4a86-9a76-d3d0d58039bd
+# ╠═c0f0abd8-7d98-44b4-9a8f-4b66660ee3bb
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
