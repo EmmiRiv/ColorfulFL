@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,10 @@ using InteractiveUtils
 using CSV, Convex, SCS, LinearAlgebra, Statistics, SparseArrays, Printf
 
 # ╔═╡ 42a1ef8e-d268-442e-8936-ef40115351f9
-fC = CSV.File(open("subsets/adult-50-15.csv"))
+fC = CSV.File(open("subsets/adult-236-36.csv"))
 
 # ╔═╡ c93d92c2-dde5-4e60-8b41-4c3190d04996
-fF = CSV.File(open("subsets/adult-50-15-fac.csv"))
+fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
 
 # ╔═╡ 37c41ffb-4313-408a-aefe-f8ed409f0819
 costs = Dict()
@@ -230,12 +230,12 @@ function adjustOut()
 		push!(outlier_uncov, uncovO)
 		push!(fair_uncov, uncovF)
 	end
-	print("outlier_uncov=",outlier_uncov)
-	print("\n\n fair_uncov=",fair_uncov)
-	print("\n\n outlier_cost=",ocost)
-	print("\n\n fair_cost=",fcost)
-	print("\n\n outlier_out=",outlier_out)
-	print("\n\n fair_out=",fair_out)
+	print("outlier_uncovLP1 = ",outlier_uncov)
+	print("\n\nfair_uncovLP1 = ",fair_uncov)
+	print("\n\noutlier_costLP1 = ",ocost)
+	print("\n\nfair_costLP1 = ",fcost)
+	print("\n\noutlier_outLP1 = ",outlier_out)
+	print("\n\nfair_outLP1 = ",fair_out)
 end
 
 # ╔═╡ 2223c02c-47e3-481f-bb59-bdfd8cc8a739
@@ -262,7 +262,7 @@ SCS = "~2.1.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "635367831545fff4de9167eff35f9f4dc5ff766a"
 
@@ -547,7 +547,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+2"
 
 [[deps.OpenSpecFun_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl"]

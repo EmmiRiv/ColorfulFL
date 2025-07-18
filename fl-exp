@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -8,7 +8,7 @@ using InteractiveUtils
 using CSV, Convex, SCS, Printf, SparseArrays, LinearAlgebra, Statistics
 
 # ╔═╡ 2fb4d19a-e6f2-4e8d-8a08-16357914cf2d
-fC = CSV.File(open("subsets/adult-50-15.csv"))
+fC = CSV.File(open("subsets/adult-236-36.csv"))
 
 # ╔═╡ 7eb232a1-559c-4184-b177-6f93f8481451
 #fC = CSV.File(open("subsets/adult-2274-342.csv"))
@@ -17,7 +17,7 @@ fC = CSV.File(open("subsets/adult-50-15.csv"))
 #fF = CSV.File(open("subsets/adult-2274-342-fac.csv"))
 
 # ╔═╡ e23c19e9-3dd8-4ed1-89d6-0d0d6d8aa134
-fF = CSV.File(open("subsets/adult-50-15-fac.csv"))
+fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
 
 # ╔═╡ 19a9a392-3994-4983-854c-711083e263ec
 function l2(v1,v2)
@@ -163,7 +163,7 @@ function solveLP(groups, out)
 	solve!(problem, SCS.Optimizer; silent=true)
 	z = x.value[m*n+1:m*n+n]
 	OPTval = problem.optval
-	return x.value, OPTval
+	return z, OPTval
 end
 
 # ╔═╡ 01cfb554-1e07-4e7c-8e96-c1d18e55a75b
@@ -283,17 +283,23 @@ function runPD(z)
 	return cF+cC, final, cens
 end
 
-# ╔═╡ ebc431ed-be29-44d2-8e9c-70618056a88c
-fffZ, fffOPTval = solveLP(groupsF, [7,2])
-
-# ╔═╡ 87512083-c150-4c0d-89d6-579fa0ff164a
-fffZ[1:m*n]
-
-# ╔═╡ 0b36ae06-c965-46bd-afad-9652da2b6dda
-fffZ[m*n+1:m*n+n]
-
-# ╔═╡ 730dc205-9463-4873-9bed-77f383020fae
-fffZ[m*n+n+1:end]
+# ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	p=5
+	@printf("percent outliers: %d",p)
+	outG = [floor((p/100)*l) for l in gC]
+	outL = [sum(outG)]
+	fZ, fOPTval = solveLP(groupsF, outG)
+	oZ, oOPTval = solveLP(groupsO, outL)
+	costF, facF, censF = runPD(fZ)
+	costO, facO, censO = runPD(oZ)
+	@printf("outlier cost: %f",costO)
+	@printf("fair cost: %f",costF)
+	print(censO,censF,"\n\n")
+end
+  ╠═╡ =#
 
 # ╔═╡ 57b70daa-299a-4bde-9aa3-a11a79ab110b
 function adjustOut()
@@ -326,54 +332,18 @@ function adjustOut()
 		push!(fgoal,outG)
 		push!(percc,p)
 	end
-	print(percc)
-	print(outlier_cens)
-	print(fair_cens)
-	print(ocost)
-	print(fcost)
-	print(oopt)
-	print(fopt)
-	print(fgoal)
+	print("percent_outliers = ",percc)
+	print("\n\noutlier_censLPPD = ",outlier_cens)
+	print("\n\nfair_censLPPD = ",fair_cens)
+	print("\n\noutlier_costLPPD = ",ocost)
+	print("\n\nfair_costLPPD = ",fcost)
+	print("\n\noutlier_optLPPD = ",oopt)
+	print("\n\nfair_optLPPD = ",fopt)
+	print("\n\nfair_coverage = ",fgoal)
 end
-
-# ╔═╡ 3c19d5ec-aace-4861-aa1f-b2a3ed652e81
-# ╠═╡ disabled = true
-#=╠═╡
-@time begin
-	gg = copy(gC)
-	ggff = [0.1*g for g in gg]
-	ggoo = [sum(ggff)]
-	ffZ, ffOPTval = solveLP(groupsF, ggff, 3)
-	cc,fff,cccc = runPD(ffZ)
-	ooZ, ooOPTval = solveLP(groupsO, ggoo, 3)
-	coo, foo, censoo = runPD(ooZ)
-	print(cc,"\n",coo,"\n",cccc,censoo)
-end
-  ╠═╡ =#
 
 # ╔═╡ b327473c-47d9-4f64-8804-30d7e30fd7a4
-# ╠═╡ disabled = true
-#=╠═╡
 adjustOut()
-  ╠═╡ =#
-
-# ╔═╡ 3a6b682a-7b30-42cf-988a-1a73d5e4af3b
-# ╠═╡ disabled = true
-#=╠═╡
-begin
-	p=5
-	@printf("percent outliers: %d",p)
-	outG = [floor((p/100)*l) for l in gC]
-	outL = [sum(outG)]
-	fZ, fOPTval = solveLP(groupsF, outG)
-	oZ, oOPTval = solveLP(groupsO, outL)
-	costF, facF, censF = runPD(fZ)
-	costO, facO, censO = runPD(oZ)
-	@printf("outlier cost: %f",costO)
-	@printf("fair cost: %f",costF)
-	print(censO,censF,"\n\n")
-end
-  ╠═╡ =#
 
 # ╔═╡ 9c5ee192-3bee-466d-bff4-c1234de1d5f2
 # ╠═╡ disabled = true
@@ -914,12 +884,7 @@ version = "5.11.0+0"
 # ╠═c4c8184f-823a-41ec-b470-32082ee32aac
 # ╠═d16dff45-2a6b-489b-b13b-e49fb5a4f95a
 # ╠═3a6b682a-7b30-42cf-988a-1a73d5e4af3b
-# ╠═ebc431ed-be29-44d2-8e9c-70618056a88c
-# ╠═87512083-c150-4c0d-89d6-579fa0ff164a
-# ╠═0b36ae06-c965-46bd-afad-9652da2b6dda
-# ╠═730dc205-9463-4873-9bed-77f383020fae
 # ╠═57b70daa-299a-4bde-9aa3-a11a79ab110b
-# ╠═3c19d5ec-aace-4861-aa1f-b2a3ed652e81
 # ╠═b327473c-47d9-4f64-8804-30d7e30fd7a4
 # ╠═9c5ee192-3bee-466d-bff4-c1234de1d5f2
 # ╟─00000000-0000-0000-0000-000000000001

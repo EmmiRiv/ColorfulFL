@@ -4,17 +4,17 @@
 using Markdown
 using InteractiveUtils
 
-# ╔═╡ 048efef7-136c-41c4-b958-b5308e709cf8
-using CSV
+# ╔═╡ 579f62a0-6342-11f0-1049-df88128ea9f2
+using CSV, Printf
 
-# ╔═╡ 5eda2eaa-6136-11f0-2833-097e8c06610c
+# ╔═╡ 00fc410f-c585-4a57-bb05-8593001a4daa
 fC = CSV.File(open("subsets/adult-236-36.csv"))
 
-# ╔═╡ baaab918-1085-4473-8b22-40f6d2a638b0
+# ╔═╡ aec87dc6-dc5d-4aa3-8c6e-e6af9bf6e991
 fF = CSV.File(open("subsets/adult-236-36-fac.csv"))
 
-# ╔═╡ 71477b9d-b19d-4982-bead-af401882f991
-function l2(v1,v2)
+# ╔═╡ 0f3e0470-55e0-4f39-80a7-672dc209c21d
+function l2(v1, v2)
 	d = 0
 	for i in 1:size(v1)[1]
 		d += (v1[i]-v2[i])^2
@@ -22,22 +22,20 @@ function l2(v1,v2)
 	return sqrt(d)
 end
 
-# ╔═╡ 51ab9d1e-9eeb-4b19-8033-3f792187363c
-costs = Dict()
-
-# ╔═╡ dc6f6c3f-a830-412e-8156-1297dcc5e811
+# ╔═╡ 1a5d9599-154b-4569-a77d-ed0632dcbd73
 function process()
 	Fpos = []
 	dist = []
 	gC = [0,0]
 	groupsF = Dict()
 	groupsO = Dict()
+	dmin = Inf
+	dmax = 0
 
 	iind = 0
 	for rwi in fF
 		iind += 1
 		push!(Fpos, [rwi.d1, rwi.d2, rwi.d3, rwi.d4, rwi.d5, rwi.d6])
-		costs[iind] = 2
 	end
 
 	jind = 0
@@ -46,7 +44,14 @@ function process()
 		jdist = []
 		jpos = [rwj.d1, rwj.d2, rwj.d3, rwj.d4, rwj.d5, rwj.d6]
 		for iP in Fpos
-			push!(jdist, l2(jpos, iP))
+			ijdist = l2(jpos, iP)
+			push!(jdist, ijdist)
+			if ijdist < dmin
+				dmin = ijdist
+			end
+			if ijdist > dmax
+				dmax = ijdist
+			end
 		end
 		push!(dist, jdist)
 
@@ -60,182 +65,178 @@ function process()
 		gC[c] += 1
 	
 	end
-	return dist, jind, size(Fpos)[1], gC, groupsF, groupsO
+	return dist, jind, size(Fpos)[1], gC, groupsF, groupsO, dmin, dmax
 		
 end
 
-# ╔═╡ 1b4ca69e-ba81-4707-88a8-56c87b7b6c9e
-dist, n, m, gC, groupsF, groupsO = process()
+# ╔═╡ 1b19fa25-ced9-4ccc-897b-1acf01d9dbf5
+dist, n, m, gC, groupsF, groupsO, dmin, dmax = process()
 
-# ╔═╡ 901e8755-050a-4da3-8c2c-236384b56e94
-om = size(gC)[1]
+# ╔═╡ c42ab94a-cc34-4256-b5eb-2316b68012a0
+k = 5
 
-# ╔═╡ 69e93a45-81bc-4549-86e3-dca21303755e
-function takeCensus(status)
-	cens = zeros(om)
-	for j in 1:n
-		if status[j] == 1
-			cens[groupsF[j]] += 1
-		end
-	end
-	return cens
-end
-
-# ╔═╡ c5015786-a3f5-4837-bbfa-078baac0d704
-function makeTimeline()
-	tl = []
-	for j in 1:n
-		for i in 1:m
-			push!(tl, [j,i]) 
-		end
-	end
-	sort!(tl, by = x -> dist[x[1]][x[2]])
-	return tl
-end
-
-# ╔═╡ a156439f-2ca5-4600-b8b7-98e4e86c7c58
-tl = makeTimeline()
-
-# ╔═╡ 872f4d4e-1275-42d5-b9a4-4bb0a8765d01
-function computeCost(cities)
+# ╔═╡ c56042e7-4bda-4687-aa14-39695b2bcbf7
+function initLS(groups, pens)
+	assignment = Dict()
+	orig = [i for i in 1:m]
+	init = []
 	cost = 0
-	for i in 1:m
-		if size(cities[i])[1] != 0
-			cost += costs[i]
-			for j in cities[i]
-				cost += dist[j][i]
-			end
-		end
+	
+	while size(init)[1] < k
+		fnd = rand(1:size(orig)[1])
+		push!(init, orig[fnd])
+		deleteat!(orig, fnd)
 	end
-	return cost
-end
 
-# ╔═╡ 188f6e6d-b7c7-4cee-8c4f-adcd97abc142
-function finishGroup(g, status, freeze, groups, t)
 	for j in 1:n
-		if groups[j] == g && status[j] == 2
-			status[j] = 1
-			freeze[j] = t
-		end
-	end
-end
-
-# ╔═╡ 1420383e-a76b-46e7-ba19-1a3f3302a60b
-function openFac(i0, isOpen, contributors, cities, status, freeze, groups, t, lG)
-	isOpen[i0] = true
-	for j in contributors[i0]
-		if status[j] == 2
-			status[j] = 3
-			push!(cities[i0], j)
-			lG[groups[j]] -= 1
-			if lG[groups[j]] == 0
-				finishGroup(groups[j], status, freeze, groups, t)
+		lmin = pens[groups[j]]
+		fmin = -1
+		for i in init
+			if dist[j][i] < lmin
+				lmin = dist[j][i]
+				fmin = i
 			end
 		end
+		assignment[j] = fmin
+		cost += lmin
 	end
+
+	return init, orig, assignment, cost
 end
 
-# ╔═╡ 1391118b-f3c2-411a-a07f-25093a6d3157
-function event(i0, j0, isOpen, contributors, cities, status, freeze, lG, groups)
-	t = dist[j0][i0]
-	if status[j0] == 2 && isOpen[i0]
-		status[j0] = 3
-		push!(cities[i0], j0)
-		lG[groups[j0]] -= 1
-		if lG[groups[j0]] == 0
-			finishGroup(groups[j0], status, freeze, groups, t)
-		end
-	elseif status[j0] == 2 && !isOpen[i0]
-		push!(contributors[i0], j0)
-	end
-
-	for i in 1:m
-		if !isOpen[i]
-			cont = 0
-			for j in contributors[i]
-				if status[j] == 2
-					cont += t - dist[j][i0]
-				elseif status[j] == 1
-					cont += maximum([0, freeze[j]-dist[j][i0]])
+# ╔═╡ f7f7fd8f-6801-4864-afe3-4d0e52c19c50
+function localSearch(X0, FX0, assignment0, cost0, groups, pens)
+	for fnd in 1:k 
+		fout = X0[fnd]
+		xS = copy(X0)
+		deleteat!(xS, fnd)
+		for fndp in 1:m-k
+			costN = 0
+			assignmentN = Dict()
+			fin = FX0[fndp]
+			XN = copy(xS)
+			push!(XN, fin)
+			for j in 1:n
+				if assignment0[j] == -1
+					if dist[j][fin] < pens[groups[j]]
+						assignmentN[j] = fin
+						costN += dist[j][fin]
+					else
+						assignmentN[j] = -1
+						costN += pens[groups[j]]
+					end
+				elseif assignment0[j] == fout
+					lmin = pens[groups[j]]
+					fmin = -1
+					for i in XN
+						if dist[j][i] < lmin
+							lmin = dist[j][i]
+							fmin = i
+						end
+					end
+					assignmentN[j] = fmin
+					costN += lmin
+				else
+					if dist[j][fin] < dist[j][assignment0[j]]
+						assignmentN[j] = fin
+						costN += dist[j][fin]
+					else
+						assignmentN[j] = assignment0[j]
+						costN += dist[j][assignment0[j]]
+					end
 				end
 			end
-			if cont >= costs[i]
-				openFac(i, isOpen, contributors, cities, status, freeze, groups, t, lG)
+			if costN < cost0
+				FXN = copy(FX0)
+				deleteat!(FXN, fndp)
+				push!(FXN, fout)
+				return false, XN, FXN, assignmentN, costN
 			end
 		end
 	end
+	
+	return true, X0, FX0, assignment0, cost0	
+			
+end
 
+# ╔═╡ e52552b4-2075-4175-b993-cf8d603db9a9
+function computeCost(assignment, C, groups)
+	centers = Dict()
+	census = copy(gC)
+	cost = 0
+
+	for i in C
+		centers[i] = []
+	end
+	centers[-1] = []
 	for j in 1:n
-		if status[j] == 2
-			return false
+		i = assignment[j]
+		push!(centers[i], j)
+		if i != -1
+			cost += dist[j][i]
+			census[groups[j]] -= 1
 		end
 	end
-	return true
+	return centers, census, cost
 end
-	
 
-# ╔═╡ 4ec79d43-f37d-41ec-9fa1-e8313f2667f7
-function increment(status, lG, groups)
-	isOpen = Dict()
-	contributors = Dict()
-	cities = Dict()
-	freeze = Dict()
-	for i in 1:m
-		isOpen[i] = false
-		contributors[i] = []
-		cities[i] = []
+# ╔═╡ d310f11b-2692-4ac7-b638-4ab1f20c0363
+gam = 0.01
+
+# ╔═╡ 7fea31c1-5dd1-4560-80f5-eb302caf5d95
+function loopSearch(groups, guess, lG)
+	pens = [guess/(l*gam) for l in lG]
+	X, FX, assignment, cost = initLS(groups, pens)
+	fl = false
+	while !fl
+		fl, X, FX, assignment, cost = localSearch(X, FX, assignment, cost, groups, pens)
 	end
-	for j in 1:n
-		status[j] = 2
+	return X, FX, assignment, cost
+end
+
+# ╔═╡ 5feff270-a727-4ece-8528-052a2589c406
+function loopGuess(groups, lG)
+	eps = size(lG)[1]/gam
+	minCost = (n-sum(lG))*dmax
+	minC = []
+	minAssignment = Dict()
+	if dmin > 0
+		guess = (n-sum(lG))*dmin
+	else
+		guess = 1
 	end
-	for e in tl
-		done = event(e[2],e[1], isOpen, contributors, cities, status, freeze, lG, groups)
-		if done
-			break
+
+	while guess < (n-sum(lG))*dmax
+		C, FC, assignment, cost = loopSearch(groups, guess, lG)
+		if cost < minCost
+			minCost = cost
+			minC = C
+			minAssignment = assignment
 		end
+		guess = guess*(1+eps)
 	end
-	return cities
+	return minC, minAssignment, minCost
 end
 
-# ╔═╡ 4ca11c4f-2ad1-40f5-b9eb-f726c7f95531
-function adjustOut()
-	outlier_cens = []
-	fair_cens = []
-	fcost = []
-	ocost = []
-
-	for p in 0:20
-		#@printf("percent outliers: %d",p)
-		outG = [floor((p/100)*l) for l in gC]
-		covG = [gC[g]-outG[g] for g in 1:om]
-		covOutL = [sum(covG)]
-		statusF = Dict()
-		statusO = Dict()
-		finalF = increment(statusF, copy(covG), groupsF)
-		finalO = increment(statusO, copy(covOutL), groupsO)
-		costF = computeCost(finalF)
-		costO = computeCost(finalO)
-		censO = takeCensus(statusO)
-		push!(outlier_cens,censO)
-		push!(fair_cens,outG)
-		push!(fcost,costF)
-		push!(ocost,costO)
-	
-	end
-	print("outlier_censPD = ",outlier_cens)
-	print("\n\nfair_censPD = ",fair_cens)
-	print("\n\noutlier_costPD = ",ocost)
-	print("\n\nfair_costPD = ",fcost)
-
+# ╔═╡ ee5d9c91-0923-45dd-954b-c837a24e562d
+function run()
+	lG = [floor(l*0.2) for l in gC]
+	outG = [sum(lG)]
+	C, assignmentP, costP = loopGuess(groupsF, lG)
+	grpsF, censF, costF = computeCost(assignmentP, C, groupsF)
+	CO, assignmentPO, costPO = loopGuess(groupsO, outG)
+	grpsO, censO, costO = computeCost(assignmentPO, CO, groupsO)
+	return grpsO, grpsF, costO, costF, censO, censF
 end
 
-# ╔═╡ 127e8d94-37b0-4d2f-a549-d5f35e076b78
-adjustOut()
+# ╔═╡ 98bfb941-d132-465c-8c0b-a25012a1550c
+run()
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [compat]
 CSV = "~0.10.15"
@@ -247,7 +248,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "d08dbc71628d7eea6366b734ca874621bf576be4"
+project_hash = "1a81d4ab6a19fa608c3e1c1dad1cdcac849d9478"
 
 [[deps.CSV]]
 deps = ["CodecZlib", "Dates", "FilePathsBase", "InlineStrings", "Mmap", "Parsers", "PooledArrays", "PrecompileTools", "SentinelArrays", "Tables", "Unicode", "WeakRefStrings", "WorkerUtilities"]
@@ -432,23 +433,20 @@ version = "1.2.13+1"
 """
 
 # ╔═╡ Cell order:
-# ╠═048efef7-136c-41c4-b958-b5308e709cf8
-# ╠═5eda2eaa-6136-11f0-2833-097e8c06610c
-# ╠═baaab918-1085-4473-8b22-40f6d2a638b0
-# ╠═71477b9d-b19d-4982-bead-af401882f991
-# ╠═51ab9d1e-9eeb-4b19-8033-3f792187363c
-# ╠═dc6f6c3f-a830-412e-8156-1297dcc5e811
-# ╠═1b4ca69e-ba81-4707-88a8-56c87b7b6c9e
-# ╠═4ca11c4f-2ad1-40f5-b9eb-f726c7f95531
-# ╠═901e8755-050a-4da3-8c2c-236384b56e94
-# ╠═127e8d94-37b0-4d2f-a549-d5f35e076b78
-# ╠═69e93a45-81bc-4549-86e3-dca21303755e
-# ╠═c5015786-a3f5-4837-bbfa-078baac0d704
-# ╠═a156439f-2ca5-4600-b8b7-98e4e86c7c58
-# ╠═872f4d4e-1275-42d5-b9a4-4bb0a8765d01
-# ╠═4ec79d43-f37d-41ec-9fa1-e8313f2667f7
-# ╠═1391118b-f3c2-411a-a07f-25093a6d3157
-# ╠═1420383e-a76b-46e7-ba19-1a3f3302a60b
-# ╠═188f6e6d-b7c7-4cee-8c4f-adcd97abc142
+# ╠═579f62a0-6342-11f0-1049-df88128ea9f2
+# ╠═00fc410f-c585-4a57-bb05-8593001a4daa
+# ╠═aec87dc6-dc5d-4aa3-8c6e-e6af9bf6e991
+# ╠═0f3e0470-55e0-4f39-80a7-672dc209c21d
+# ╠═1a5d9599-154b-4569-a77d-ed0632dcbd73
+# ╠═1b19fa25-ced9-4ccc-897b-1acf01d9dbf5
+# ╠═c42ab94a-cc34-4256-b5eb-2316b68012a0
+# ╠═c56042e7-4bda-4687-aa14-39695b2bcbf7
+# ╠═f7f7fd8f-6801-4864-afe3-4d0e52c19c50
+# ╠═7fea31c1-5dd1-4560-80f5-eb302caf5d95
+# ╠═5feff270-a727-4ece-8528-052a2589c406
+# ╠═e52552b4-2075-4175-b993-cf8d603db9a9
+# ╠═ee5d9c91-0923-45dd-954b-c837a24e562d
+# ╠═98bfb941-d132-465c-8c0b-a25012a1550c
+# ╠═d310f11b-2692-4ac7-b638-4ab1f20c0363
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
