@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,10 @@ using InteractiveUtils
 using CSV, Convex, SCS, LinearAlgebra, Statistics, SparseArrays, Printf, Plots
 
 # ╔═╡ 42a1ef8e-d268-442e-8936-ef40115351f9
-fC = CSV.File(open("subsets/adult-429-65.csv"))
+fC = CSV.File(open("subsets/adult-2266-340.csv"))
 
 # ╔═╡ c93d92c2-dde5-4e60-8b41-4c3190d04996
-fF = CSV.File(open("subsets/adult-429-65-fac.csv"))
+fF = CSV.File(open("subsets/adult-2266-340-fac.csv"))
 
 # ╔═╡ cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
 function l2(v1,v2)
@@ -344,7 +344,7 @@ function roundTrunc(xzy, num)
 		if xzy[num+j] > 1 - eps
 			status[j] = 1
 		else
-			dd = dmax
+			dd = dmax+1
 			ii = 0
 			for i in facs
 				if dist[j][i] < dd
@@ -352,8 +352,12 @@ function roundTrunc(xzy, num)
 					ii = i
 				end
 			end
-			push!(facilities[ii], j)
-			status[j] = 3
+			if ii == 0
+				status[j] = 1
+			else
+				push!(facilities[ii], j)
+				status[j] = 3
+			end
 		end
 	end
 	
@@ -572,8 +576,13 @@ end
 # ╔═╡ 24f56482-62ce-44f9-9243-e2295c50d91a
 function changeRat()
 	perc = []
-	costs = []
-	disps = []
+	costsR = []
+	costsPD = []
+	costsRPD = []
+	costsOPT = []
+	dispsR = []
+	dispsPD = []
+	dispsRPD = []
 	q = 0.5
 	
 	tl = makeTimeline()
@@ -592,32 +601,62 @@ function changeRat()
 		ratPD = [lG[g]/censPD[g] for g in 1:om]
 		ratRPD = [lG[g]/censRPD[g] for g in 1:om]
 
-		push!(disps, [maximum(ratR)/minimum(ratR), maximum(ratPD)/minimum(ratPD), maximum(ratRPD)/minimum(ratRPD)])
+		push!(dispsPD, maximum(ratPD)/minimum(ratPD))
+		push!(dispsR, maximum(ratR)/minimum(ratR))
+		push!(dispsRPD, maximum(ratRPD)/minimum(ratRPD))
 
-		push!(costs, [op, costR, costPD, costRPD])
+		push!(costsR, costR)
+		push!(costsPD, costPD)
+		push!(costsRPD, costRPD)
+		push!(costsOPT, op)
 	end
-	return perc, costs, disps
+	print(perc, costsR, costsPD, costsRPD, costsOPT, dispsR, dispsPD, dispsRPD)
+	
 end
 
 # ╔═╡ 9227d457-a5c7-41cc-a31f-7655060ac27f
-perc, costsF, dispsF = changeRat()
+changeRat()
 
-# ╔═╡ 67d73c64-50fc-41bb-8d78-92c53f46001f
-begin
-	lbls = ["LP OPT","round","PD","combo"]
-	plot(layout=(1,2))
-	for t in 1:4
-		plot!(sp=1, perc, [d[t] for d in costsF], label=lbls[t])
-	end
-	for t in 1:3
-		plot!(sp=2, perc, [d[t] for d in dispsF], label=lbls[t+1])
-	end
+# ╔═╡ 734c8fed-1643-4e70-a3cc-a9d911de952d
+function changeQ()
+	quant = []
+	costsR = []
+	costsRPD = []
+	costsOPT = []
+	dispsR = []
+	dispsRPD = []
+	p = 0.05
+	lG = [floor((p/100)*l) for l in gC]
+	
+	tl = makeTimeline()
+	for q in 1:10
+		push!(quant, q/10)
 		
-	plot!(xlabel="percent outliers")
-	plot!(sp=1, ylabel="cost")
-	plot!(sp=2, ylabel="disparity")
-	plot!(title="fair FL")
+		xzy, op, close, num = solveTruncLP(groupsF, copy(lG), q/10)
+		
+		costR, censR = tstRound(xzy, num)
+
+		costRPD, censRPD = tstRPD(tl, xzy[num+1:num+n])
+
+		ratR = [lG[g]/censR[g] for g in 1:om]
+		ratRPD = [lG[g]/censRPD[g] for g in 1:om]
+
+		push!(dispsR, maximum(ratR)/minimum(ratR))
+		push!(dispsRPD, maximum(ratRPD)/minimum(ratRPD))
+
+		push!(costsR, costR)
+		push!(costsRPD, costRPD)
+		push!(costsOPT, op)
+	end
+	print(quant, costsR, costsRPD, costsOPT, dispsR, dispsRPD)
+	
 end
+
+# ╔═╡ 018241d0-8cf7-4785-a42c-d2e299b41d56
+# ╠═╡ disabled = true
+#=╠═╡
+changeQ()
+  ╠═╡ =#
 
 # ╔═╡ 0209a683-4795-4215-9d12-0e06a2ff7b5e
 function adjustOut()
@@ -679,16 +718,15 @@ CSV = "~0.10.15"
 Convex = "~0.16.4"
 Plots = "~1.40.13"
 SCS = "~2.1.0"
-Statistics = "~1.11.1"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
-project_hash = "62f42cf501b59ffb12ee9cb3a185726b9e4f01d7"
+project_hash = "aad562b2cd3a1a81a0b71bb57719aa0cbc9ff48f"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -1322,7 +1360,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -2057,7 +2095,8 @@ version = "1.4.1+2"
 # ╠═cc97092b-1be5-41a8-b4a4-c348c19657a9
 # ╠═24f56482-62ce-44f9-9243-e2295c50d91a
 # ╠═9227d457-a5c7-41cc-a31f-7655060ac27f
-# ╠═67d73c64-50fc-41bb-8d78-92c53f46001f
+# ╠═734c8fed-1643-4e70-a3cc-a9d911de952d
+# ╠═018241d0-8cf7-4785-a42c-d2e299b41d56
 # ╟─0209a683-4795-4215-9d12-0e06a2ff7b5e
 # ╠═2223c02c-47e3-481f-bb59-bdfd8cc8a739
 # ╟─00000000-0000-0000-0000-000000000001

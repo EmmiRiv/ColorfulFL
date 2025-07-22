@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,10 @@ using InteractiveUtils
 using CSV, Printf, IterTools, Plots
 
 # ╔═╡ 6dd7b362-9df1-497e-ab1c-50fe1b0a15c8
-fC = CSV.File(open("subsets/adult-2274-342.csv"))
+fC = CSV.File(open("subsets/adult-2266-340.csv"))
 
 # ╔═╡ 81441eca-f2f0-4dcc-8d4f-6be700139a54
-fF = CSV.File(open("subsets/adult-2274-342-fac.csv"))
+fF = CSV.File(open("subsets/adult-2266-340-fac.csv"))
 
 # ╔═╡ 489e49bd-c92d-4f4a-b6d2-bde7828d3e33
 function l2(v1, v2)
@@ -123,12 +123,6 @@ function controlOut(out, ctrs)
 	cost = computeCost(ctrs, served)
 	return cens, cost
 end
-
-# ╔═╡ f5fb2995-6c37-4982-9c2e-64614254e6ca
-lG = [floor(0.2*l) for l in gC]
-
-# ╔═╡ 3e1f6c53-a68c-431e-8044-ddf3dcc193ff
-out = trunc(Int,sum(lG))
 
 # ╔═╡ 98da20cf-2ceb-4ede-bb35-8ec6d9c33d6a
 k = 5
@@ -260,9 +254,38 @@ function loopGuess(groups, lG, gam)
 	return minC
 end
 
+# ╔═╡ 74717bb6-4af7-44d8-8251-bda4d089d926
+function tstFair(lG, gam, out)
+	ctrsF = loopGuess(groupsF, lG, gam)
+	censusF, costF = controlOut(out, ctrsF)
+	return ctrsF, censusF, costF
+end
+
+# ╔═╡ 5f32345e-5706-4027-8f75-7b643f8423b7
+function tstOut(gam, out)
+	groupsO = Dict()
+	for j in 1:n
+		groupsO[j] = 1
+	end
+	ctrsO = loopGuess(groupsO, [out], gam)
+	censusO, costO = controlOut(out, ctrsO)
+	return ctrsO, censusO, costO
+end
+
+# ╔═╡ 7ef27f26-1357-4c8a-bf39-af6d68f329db
+function loopSearchBasic(groups, guess)
+	pens = [Inf for l in 1:om]
+	X, FX, assignment, cost = initLS(groups, pens)
+	fl = false
+	while !fl
+		fl, X, FX, assignment, cost = localSearch(X, FX, assignment, cost, groups, pens)
+	end
+	return X, FX, assignment, cost
+end
+
 # ╔═╡ 9fa0610b-c971-44d6-b185-9cdd93c330fe
-function loopGuessBasic(groups, lG, gam)
-	eps = size(lG)[1]/gam
+function loopGuessBasic(groups, gam)
+	eps = om/gam
 	minCost = n*dmax
 	minC = []
 	if dmin > 0
@@ -271,8 +294,8 @@ function loopGuessBasic(groups, lG, gam)
 		guess = 1
 	end
 
-	while guess < (n-sum(lG))*dmax
-		C, FC, assignment, cost = loopSearch(groups, guess, lG, gam)
+	while guess < n*dmax
+		C, FC, assignment, cost = loopSearchBasic(groups, guess)
 		if cost < minCost
 			minCost = cost
 			minC = C
@@ -282,15 +305,11 @@ function loopGuessBasic(groups, lG, gam)
 	return minC
 end
 
-# ╔═╡ 7ef27f26-1357-4c8a-bf39-af6d68f329db
-function loopSearchBasic(groups, guess, lG, gam)
-	pens = [Inf for l in lG]
-	X, FX, assignment, cost = initLS(groups, pens)
-	fl = false
-	while !fl
-		fl, X, FX, assignment, cost = localSearch(X, FX, assignment, cost, groups, pens)
-	end
-	return X, FX, assignment, cost
+# ╔═╡ b4af48ab-9f94-4c51-8816-c816fb73c4ef
+function tstBasic(gam, out)
+	ctrsB = loopGuessBasic(groupsF, gam)
+	censusB, costB = controlOut(out, ctrsB)
+	return ctrsB, censusB, costB
 end
 
 # ╔═╡ f182b5e4-caec-4c22-8bef-6d418cb693ed
@@ -307,38 +326,10 @@ function randCenters()
 end
 
 # ╔═╡ 2ad3c215-d24d-48fb-9513-ee8115cc5977
-function tstRand()
+function tstRand(out)
 	ctrsR = randCenters()
 	censusR, costR = controlOut(out, ctrsR)
 	return ctrsR, censusR, costR
-end
-
-# ╔═╡ 2396888c-af8c-49fe-b11f-c4129ef2bf27
-gam = 0.1
-
-# ╔═╡ 74717bb6-4af7-44d8-8251-bda4d089d926
-function tstFair()
-	ctrsF = loopGuess(groupsF, lG, gam)
-	censusF, costF = controlOut(out, ctrsF)
-	return ctrsF, censusF, costF
-end
-
-# ╔═╡ b4af48ab-9f94-4c51-8816-c816fb73c4ef
-function tstBasic()
-	ctrsB = loopGuessBasic(groupsF, lG, gam)
-	censusB, costB = controlOut(out, ctrsB)
-	return ctrsB, censusB, costB
-end
-
-# ╔═╡ 5f32345e-5706-4027-8f75-7b643f8423b7
-function tstOut()
-	groupsO = Dict()
-	for j in 1:n
-		groupsO[j] = 1
-	end
-	ctrsO = loopGuess(groupsO, [out], gam)
-	censusO, costO = controlOut(out, ctrsO)
-	return ctrsO, censusO, costO
 end
 
 # ╔═╡ 953c5eb2-2a00-4c24-9061-ce9a6e79c509
@@ -351,13 +342,16 @@ function changeRat()
 	dispF = []
 	dispO = []
 	dispB = []
-	for r in [0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05]
+	cens = []
+	for p in 1:10
+		r = p/100
 		lG = [floor(l*r) for l in gC]
+		out = trunc(Int, sum(lG))
 		gam = r/10
-		cR, cenR, cstR = tstRand()
-		cF, cenF, cstF = tstFair()
-		cO, cenO, cstO = tstOut()
-		cB, cenB, cstB = tstBasic()
+		cR, cenR, cstR = tstRand(out)
+		cF, cenF, cstF = tstFair(lG, gam, out)
+		cO, cenO, cstO = tstOut(gam, out)
+		cB, cenB, cstB = tstBasic(gam, out)
 
 		push!(costR, cstR)
 		push!(costF, cstF)
@@ -373,12 +367,67 @@ function changeRat()
 		push!(dispF, maximum(ratF)/minimum(ratF))
 		push!(dispO, maximum(ratO)/minimum(ratO))
 		push!(dispB, maximum(ratB)/minimum(ratB))
+
+		push!(cens, [cenR, cenF, cenO, cenB])
 	end
-	return costR, costF, costO, costB, dispR, dispF, dispO, dispB
+	print(costR, costF, costO, costB, dispR, dispF, dispO, dispB, cens)
 end
 
 # ╔═╡ 2d97ac84-8a33-4e59-901b-59b642c895ca
-costR, costF, costO, costB, dispR, dispF, dispO, dispB = changeRat()
+changeRat()
+
+# ╔═╡ b9960958-2ffc-4537-8ac0-292208a3df0a
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	#4520-678
+	costR = [9790.402511961718, 8459.326506499316, 7995.062633673838, 7758.692455648049, 8857.577546470315, 6953.4211597505655]
+		
+	costF = [6645.566847089055, 6661.844155741353, 6518.948386942639, 6340.6134522438215, 6195.423414557967, 5812.331255832305]
+		
+	costO = [6616.538004995221, 6546.531086061736, 6529.493555819822, 6331.768985944946, 6162.136599424345, 5905.885523801596]
+		
+	costB = [6559.942668286338, 6551.4484637407895, 6518.5426538994, 6282.47152045906, 6229.78941401983, 5560.64067723848]
+		
+	dispR = [NaN, NaN, Inf, 1.5866666666666667, 1.8148148148148149, 2.155327342747112]
+		
+	dispF = [NaN, NaN, Inf, 1.5866666666666667, 1.8148148148148149, 2.290485829959514]
+		
+	dispO = [NaN, NaN, Inf, 1.5866666666666667, 2.1, 2.2212171052631575]
+		
+	dispB = [NaN, NaN, Inf, 1.5866666666666667, 1.8148148148148149, 1.4844497607655502]
+end
+  ╠═╡ =#
+
+# ╔═╡ 42757bd3-1eb3-4c65-8402-6032b2e29663
+"""
+2266 k=5
+Any[3959.5528061240675, 4597.539354641413, 5051.377905971037, 3536.537580456031, 4088.251669766518, 3272.9768268686807, 3319.3615064326023, 3569.4879885146765, 3115.064837094923, 3140.0167828371023]Any[3193.851884482705, 3136.281938483185, 3008.651579073222, 2954.885819612603, 2963.630458592958, 2762.5185655416526, 2750.263914113105, 2742.2574730726546, 2700.7204048229178, 2599.0642536686955]Any[3203.1083429131013, 3101.6963632383804, 3038.60098771188, 2964.4603453471186, 3006.4813394176654, 2870.6534154393553, 2897.071116487048, 2849.874032163973, 3072.709112393235, 2971.8166564439307]Any[3178.446453928473, 3103.587291000106, 3035.4052225626374, 2949.539766375231, 2886.3795578638915, 2844.0533226667867, 2741.8360966546725, 2691.573109437083, 2620.5907996927067, 2542.784451701784]Any[2.1, 1.75, 2.488888888888889, 2.714285714285714, 2.576296296296296, 2.1999999999999997, 1.7262585034013607, 1.4986225895316805, 1.5075000000000003, 1.2302598064187467]Any[2.1, 1.2307692307692306, 1.2350877192982457, 1.2307692307692306, 2.576296296296296, 2.3125, 2.0965079365079364, 1.7479338842975207, 1.4305712669683257, 1.313821832941679]Any[2.1, 1.5454545454545454, 1.2350877192982457, 2.9615384615384612, 2.576296296296296, 2.0961538461538463, 1.7262585034013607, 1.5439519158527422, 1.394284128745838, 1.582045621780721]Any[2.1, 1.5454545454545454, 1.070899470899471, 1.2999999999999998, 1.1317647058823528, 1.034090909090909, 1.0290310650887573, 1.0515816471929325, 1.0, 1.1540708998831322]
+"""
+
+# ╔═╡ 8aa3d11d-2e81-4057-8b77-5fb261b2b6f5
+"""
+2266-340-sex
+rand_cost_k5 = [4105.520220477397, 3892.3363388245643, 3353.567130223865, 3659.0115625799763, 4023.6243101511272, 3744.6094368562494, 3144.309427571429, 3048.2181539263415, 3119.9101520001796, 3975.0223992696415]
+
+fair_cost_k5 = [3216.775552090925, 3101.322565455392, 3025.661682257725, 2949.514843539642, 2856.773170730138, 2781.6704111094896, 2776.3155048297112, 2662.425534966781, 2648.964928577097, 2599.8703763511603]
+
+outlier_cost_k5 = [3212.790435513854, 3124.148053823756, 3025.9508794517296, 2954.7207609590255, 2953.9545921105714, 2917.5283992734753, 3015.7258791695176, 3000.948015653535, 3167.459853991453, 3907.643590170008]
+
+basic_cost_k5 = [3210.5396356611536, 3106.4791142409017, 3019.1993934625957, 2965.4990905964805, 2880.6332407301634, 2791.862362516795, 2750.127345406527, 2734.253452307608, 2642.0034835970464, 2567.574760936451]
+
+rand_disp_k5 = [2.1, 2.714285714285714, 2.786666666666667, 3.25, 1.2333333333333334, 2.0, 1.6645502645502646, 1.8054672600127146, 1.5075000000000003, 1.661996943453897]
+
+fair_disp_k5 = [2.1, 1.5454545454545454, 1.2350877192982457, 1.1666666666666667, 2.576296296296296, 2.1999999999999997, 2.0965079365079364, 1.8054672600127146, 1.5483193277310925, 1.4058816926703332]
+
+outlier_disp_k5 = [2.1, 1.2307692307692306, 1.3308641975308644, 3.25, 2.576296296296296, 2.0961538461538463, 1.8608946608946608, 1.4986225895316805, 1.7297385620915033, 1.9435646415202994]
+
+basic_disp_k5 = [2.1, 1.75, 1.2350877192982457, 1.2307692307692306, 1.2333333333333334, 1.034090909090909, 1.0915451895043733, 1.0766949152542373, 1.0699678308823528, 1.1301468471062481]
+
+rand_fair_outlier_basic_cens_k5 = [[[18.0, 4.0], [18.0, 4.0], [18.0, 4.0], [18.0, 4.0]], [[38.0, 7.0], [34.0, 11.0], [32.0, 13.0], [35.0, 10.0]], [[57.0, 10.0], [48.0, 19.0], [49.0, 18.0], [48.0, 19.0]], [[78.0, 12.0], [63.0, 27.0], [78.0, 12.0], [64.0, 26.0]], [[80.0, 32.0], [94.0, 18.0], [94.0, 18.0], [80.0, 32.0]], [[108.0, 27.0], [110.0, 25.0], [109.0, 26.0], [91.0, 44.0]], [[121.0, 36.0], [127.0, 30.0], [124.0, 33.0], [108.0, 49.0]], [[142.0, 39.0], [142.0, 39.0], [136.0, 45.0], [118.0, 63.0]], [[153.0, 50.0], [154.0, 49.0], [158.0, 45.0], [139.0, 64.0]], [[174.0, 52.0], [167.0, 59.0], [180.0, 46.0], [157.0, 69.0]]]
+
+p_out = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -398,7 +447,7 @@ Plots = "~1.40.13"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "58530884243966ed57828dd09778e535b9b7a9ae"
 
@@ -946,7 +995,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -1611,11 +1660,11 @@ version = "1.4.1+2"
 # ╠═74717bb6-4af7-44d8-8251-bda4d089d926
 # ╠═b4af48ab-9f94-4c51-8816-c816fb73c4ef
 # ╠═5f32345e-5706-4027-8f75-7b643f8423b7
-# ╠═f5fb2995-6c37-4982-9c2e-64614254e6ca
-# ╠═3e1f6c53-a68c-431e-8044-ddf3dcc193ff
 # ╠═98da20cf-2ceb-4ede-bb35-8ec6d9c33d6a
-# ╠═2396888c-af8c-49fe-b11f-c4129ef2bf27
 # ╠═953c5eb2-2a00-4c24-9061-ce9a6e79c509
 # ╠═2d97ac84-8a33-4e59-901b-59b642c895ca
+# ╠═b9960958-2ffc-4537-8ac0-292208a3df0a
+# ╠═42757bd3-1eb3-4c65-8402-6032b2e29663
+# ╠═8aa3d11d-2e81-4057-8b77-5fb261b2b6f5
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
