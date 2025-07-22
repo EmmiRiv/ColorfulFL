@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,10 @@ using InteractiveUtils
 using CSV, Convex, SCS, LinearAlgebra, Statistics, SparseArrays, Printf, Plots
 
 # ╔═╡ 42a1ef8e-d268-442e-8936-ef40115351f9
-fC = CSV.File(open("subsets/adult-2266-340.csv"))
+fC = CSV.File(open("subsets/adult-429-65.csv"))
 
 # ╔═╡ c93d92c2-dde5-4e60-8b41-4c3190d04996
-fF = CSV.File(open("subsets/adult-2266-340-fac.csv"))
+fF = CSV.File(open("subsets/adult-429-65-fac.csv"))
 
 # ╔═╡ cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
 function l2(v1,v2)
@@ -279,6 +279,9 @@ function solveLP(groups, out)
 	return x.value, OPTval
 end
 
+# ╔═╡ 30d3025e-b9c2-437c-af80-7215f615a53e
+solveLP(groupsF, [30,15])
+
 # ╔═╡ 2aa07002-b266-4f45-a201-10718df17b32
 function cleaning(zVec)
 	status = Dict()
@@ -499,7 +502,7 @@ end
 	
 
 # ╔═╡ 48c45b95-ece3-4c8f-8532-479493b9b882
-function increment(tl, lG, groups)
+function increment(tl, covG, groups)
 	isOpen = Dict()
 	contributors = Dict()
 	cities = Dict()
@@ -510,7 +513,6 @@ function increment(tl, lG, groups)
 		contributors[i] = []
 		cities[i] = []
 	end
-	covG = [gC[g]-lG[g] for g in 1:om]
 	for j in 1:n
 		status[j] = 2
 	end
@@ -550,8 +552,16 @@ function computeCost(facilities)
 end
 
 # ╔═╡ fd03e791-f9ed-491e-8ee0-bdf452e92175
-function tstRound(xzy, num)
+function tstTruncRound(xzy, num)
 	st, fac = roundTrunc(xzy, num)
+	cost = computeCost(fac)
+	cens = takeCensus(st)
+	return cost, cens
+end
+
+# ╔═╡ 2c9728e5-05df-4273-8a50-1eaaef87e40d
+function tstRound(xzy)
+	st, fac = round(xzy)
 	cost = computeCost(fac)
 	cens = takeCensus(st)
 	return cost, cens
@@ -565,53 +575,85 @@ function tstRPD(tl, z)
 	return cost, cens
 end
 
-# ╔═╡ 9f153055-08f7-492e-861d-949b56d705ca
-function tstPD(tl, lG)
-	fac, st = increment(tl, lG, groupsF)
+# ╔═╡ 9a04d16c-fc55-4ef2-8503-76e988786171
+tstRound(solveLP(groupsF, [30,15])[1])
+
+# ╔═╡ 10cd0556-178c-4cc1-a360-52b7401a1e18
+solveLP(groupsF, [30,15])
+
+# ╔═╡ ae2389b6-86c0-4c5a-a5b0-644eded2f5ed
+function tstPDO(tl, out)
+	fac, st = increment(tl, [n-out], groupsO)
 	cost = computeCost(fac)
 	cens = takeCensus(st)
 	return cost, cens
 end
 
+# ╔═╡ 9f153055-08f7-492e-861d-949b56d705ca
+function tstPD(tl, lG)
+	covG = [gC[g]-lG[g] for g in 1:om]
+	fac, st = increment(tl, covG, groupsF)
+	cost = computeCost(fac)
+	cens = takeCensus(st)
+	return cost, cens
+end
+
+# ╔═╡ 2e27747b-12e6-4596-b0ec-33c9e409f6ea
+tstPD(makeTimeline(), [30,15])
+
 # ╔═╡ 24f56482-62ce-44f9-9243-e2295c50d91a
 function changeRat()
 	perc = []
-	costsR = []
+	costsRO = []
+	costsRF = []
 	costsPD = []
 	costsRPD = []
 	costsOPT = []
-	dispsR = []
+	dispsRO = []
+	dispsRF = []
 	dispsPD = []
 	dispsRPD = []
-	q = 0.5
+	costsPDO = []
+	dispsPDO = []
 	
 	tl = makeTimeline()
 	for p in 1:10
 		push!(perc, p)
 		lG = [floor((p/100)*l) for l in gC]
-		xzy, op, close, num = solveTruncLP(groupsF, copy(lG), q)
+		xzyF, opF = solveLP(groupsF, copy(lG))
+
+		xzyO, opO = solveLP(groupsO,[sum(lG)])
 		
-		costR, censR = tstRound(xzy, num)
+		costRO, censRO = tstRound(xzyO)
+
+		costRF, censRF = tstRound(xzyF)
 
 		costPD, censPD = tstPD(tl, copy(lG))
+		
+		costPDO, censPDO = tstPDO(tl, sum(lG))
 
-		costRPD, censRPD = tstRPD(tl, xzy[num+1:num+n])
+		costRPD, censRPD = tstRPD(tl, xzyF[m*n+1:m*n+n])
 
-		ratR = [lG[g]/censR[g] for g in 1:om]
+		ratRO = [lG[g]/censRO[g] for g in 1:om]
+		ratRF = [lG[g]/censRF[g] for g in 1:om]
 		ratPD = [lG[g]/censPD[g] for g in 1:om]
 		ratRPD = [lG[g]/censRPD[g] for g in 1:om]
+		ratPDO = [lG[g]/censPDO[g] for g in 1:om]
 
 		push!(dispsPD, maximum(ratPD)/minimum(ratPD))
-		push!(dispsR, maximum(ratR)/minimum(ratR))
+		push!(dispsRO, maximum(ratRO)/minimum(ratRO))
+		push!(dispsRF, maximum(ratRF)/minimum(ratRF))
 		push!(dispsRPD, maximum(ratRPD)/minimum(ratRPD))
+		push!(dispsPDO, maximum(ratPDO)/minimum(ratPDO))
 
-		push!(costsR, costR)
+		push!(costsRO, costRO)
+		push!(costsRF, costRF)
 		push!(costsPD, costPD)
 		push!(costsRPD, costRPD)
-		push!(costsOPT, op)
+		push!(costsOPT, opF)
+		push!(costsPDO, costPDO)
 	end
-	print(perc, costsR, costsPD, costsRPD, costsOPT, dispsR, dispsPD, dispsRPD)
-	
+	print("perc = ", perc, "\n\ncostsRO = ", costsRO, "\n\ncostsRF = ", costsRF, "\n\ncostsPD = ", costsPD, "\n\ncostsPDO = ", costsPDO, "\n\ncostsRPD = ", costsRPD, "\n\ncostsOPT = ", costsOPT, "\n\ndispsRO = ", dispsRO, "\n\ndispsRF = ", dispsRF, "\n\ndispsPD = ", dispsPD, "\n\ndispsPDO = ", dispsPDO, "\n\ndispsRPD = ", dispsRPD)
 end
 
 # ╔═╡ 9227d457-a5c7-41cc-a31f-7655060ac27f
@@ -632,7 +674,7 @@ function changeQ()
 	for q in 1:10
 		push!(quant, q/10)
 		
-		xzy, op, close, num = solveTruncLP(groupsF, copy(lG), q/10)
+		xzy, op = solveLP(groupsF, copy(lG), q/10)
 		
 		costR, censR = tstRound(xzy, num)
 
@@ -724,7 +766,7 @@ SCS = "~2.1.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "aad562b2cd3a1a81a0b71bb57719aa0cbc9ff48f"
 
@@ -1360,7 +1402,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+2"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -2074,12 +2116,13 @@ version = "1.4.1+2"
 # ╠═5fc1aa8d-2cb3-4cf9-834e-27c5c9a984a8
 # ╠═67fdf390-16f5-48f3-932d-8413c5a9ff65
 # ╠═d4075add-59a8-4bc5-8907-ab2f7d90df78
+# ╠═30d3025e-b9c2-437c-af80-7215f615a53e
 # ╠═215dfd10-4d04-482f-bb41-4ef20e8b1869
 # ╠═2aa07002-b266-4f45-a201-10718df17b32
 # ╟─10fba2b5-19c8-4b69-b43b-cd64fdf850db
 # ╠═abbc8843-4815-4856-a254-29e84aac6c44
 # ╟─aa12f91e-20b0-4892-b26a-3f784f682d45
-# ╟─48c45b95-ece3-4c8f-8532-479493b9b882
+# ╠═48c45b95-ece3-4c8f-8532-479493b9b882
 # ╟─5d89c652-2999-4217-bd12-741cf65b1b60
 # ╟─e3218920-0a41-49c4-9ea0-5c8cf595c389
 # ╟─26512753-e165-4791-99d6-462afb2ceef0
@@ -2089,6 +2132,11 @@ version = "1.4.1+2"
 # ╠═e0be87cc-e21b-4068-a84d-eb3510477b13
 # ╠═33359369-fa76-4760-b009-3c95037501f0
 # ╠═fd03e791-f9ed-491e-8ee0-bdf452e92175
+# ╠═2c9728e5-05df-4273-8a50-1eaaef87e40d
+# ╠═9a04d16c-fc55-4ef2-8503-76e988786171
+# ╠═2e27747b-12e6-4596-b0ec-33c9e409f6ea
+# ╠═10cd0556-178c-4cc1-a360-52b7401a1e18
+# ╠═ae2389b6-86c0-4c5a-a5b0-644eded2f5ed
 # ╠═9f153055-08f7-492e-861d-949b56d705ca
 # ╠═68e11e07-25dc-4f90-8619-845ec5bef0a1
 # ╠═fe9a2596-4eaf-4219-a8f5-b1b69ab7d811
