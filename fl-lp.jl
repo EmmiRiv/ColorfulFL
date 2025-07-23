@@ -1,17 +1,11 @@
 ### A Pluto.jl notebook ###
-# v0.20.6
+# v0.20.3
 
 using Markdown
 using InteractiveUtils
 
 # ╔═╡ 78568b20-61c3-11f0-3955-7716abb99af4
 using CSV, Convex, SCS, LinearAlgebra, Statistics, SparseArrays, Printf, Plots
-
-# ╔═╡ 42a1ef8e-d268-442e-8936-ef40115351f9
-fC = CSV.File(open("subsets/adult-01-100.csv"))
-
-# ╔═╡ c93d92c2-dde5-4e60-8b41-4c3190d04996
-fF = CSV.File(open("subsets/adult-01-100-fac.csv"))
 
 # ╔═╡ cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
 function l2(v1,v2)
@@ -23,7 +17,9 @@ function l2(v1,v2)
 end
 
 # ╔═╡ ddd6838c-4a35-456b-b0cb-1af6f044002f
-function process(f)
+function process()
+	fC = CSV.File(open("subsets/adult-01-100.csv"))
+	fF = CSV.File(open("subsets/adult-01-100-fac.csv"))
 	Fpos = []
 	dist = []
 	gps = Dict()
@@ -39,7 +35,6 @@ function process(f)
 	for rwi in fF
 		iind += 1
 		push!(Fpos, [rwi.d1, rwi.d2, rwi.d3, rwi.d4, rwi.d5, rwi.d6])
-		costs[iind] = f
 	end
 
 	jind = 0
@@ -73,7 +68,64 @@ function process(f)
 		groupsO[jind] = 1
 	
 	end
-	return dist, jind, size(Fpos)[1], gC, groupsF, groupsO, om, dmin, dmax, costs
+	return dist, jind, iind, gC, groupsF, groupsO, om, dmin, dmax, costs
+		
+end
+
+# ╔═╡ 646f38af-8ed5-4ed0-9c98-9f606cf22154
+function processSynth()
+	fC = CSV.File(open("datasets-synth/synth-500-40.csv"))
+	fF = CSV.File(open("datasets-synth/synth-500-40-fac.csv"))
+	Fpos = []
+	dist = []
+	gps = Dict()
+	gC = []
+	groupsF = Dict()
+	groupsO = Dict()
+	dmin = Inf
+	dmax = 0
+	om = 0
+	costs = Dict()
+
+	iind = 0
+	for rwi in fF
+		iind += 1
+		push!(Fpos, [rwi.d1, rwi.d2])
+		costs[iind] = rwi.c
+	end
+
+	jind = 0
+	for rwj in fC
+		jind += 1
+		jdist = []
+		jdistM = []
+		jpos = [rwj.d1, rwj.d2]
+		for iP in Fpos
+			ijdist = l2(jpos, iP)
+			push!(jdist, ijdist)
+			if ijdist < dmin
+				dmin = ijdist
+			end
+			if ijdist > dmax
+				dmax = ijdist
+			end
+		end
+		
+		push!(dist, jdist)
+
+		if !haskey(gps, rwj.c1)
+			om += 1
+			gps[rwj.c1] = om
+			groupsF[jind] = om
+			append!(gC, 1)
+		else
+			groupsF[jind] = gps[rwj.c1]
+			gC[gps[rwj.c1]] += 1
+		end
+		groupsO[jind] = 1
+	
+	end
+	return dist, jind, iind, gC, groupsF, groupsO, om, dmin, dmax, costs
 		
 end
 
@@ -92,7 +144,7 @@ end
 eps = 0.1
 
 # ╔═╡ cc97092b-1be5-41a8-b4a4-c348c19657a9
-dist, n, m, gC, groupsF, groupsO, om, dmin, dmax, costs = process(10)
+dist, n, m, gC, groupsF, groupsO, om, dmin, dmax, costs = process()
 
 # ╔═╡ 31464b67-7929-418f-b54a-709c9a1a7e73
 function findStats(q)
@@ -262,7 +314,7 @@ function solveLP(groups, out)
 end
 
 # ╔═╡ 2aa07002-b266-4f45-a201-10718df17b32
-function cleaning(zVec)
+function cleaning(zVec, yVec)
 	status = Dict()
 	lEps = zeros(om)
 	for j in 1:n
@@ -271,6 +323,11 @@ function cleaning(zVec)
 			lEps[groupsF[j]] += 1
 		else
 			status[j] = 2
+		end
+	end
+	for i in 1:m
+		if yVec[i] <= 1-eps
+			costs[i] = Inf
 		end
 	end
 	return lEps, status
@@ -413,6 +470,12 @@ function incrementR(status, tl)
 	return cities, status
 end
 
+# ╔═╡ 1b098992-9277-4f8a-b00b-26e5e1d4494f
+# ╠═╡ disabled = true
+#=╠═╡
+fac, stt = incrementR(st,makeTimeline())
+  ╠═╡ =#
+
 # ╔═╡ 34195a22-188d-4baf-b788-2001eab87201
 function finishGroup(g, status, freeze, groups, t)
 	for j in 1:n
@@ -505,7 +568,7 @@ end
 function takeCensus(status)
 	cens = zeros(om)
 	for j in 1:n
-		if status[j] == 1
+		if status[j] == 1 || status[j] == 2
 			cens[groupsF[j]] += 1
 		end
 	end
@@ -541,8 +604,8 @@ function tstRound(xzy)
 end
 
 # ╔═╡ 68e11e07-25dc-4f90-8619-845ec5bef0a1
-function tstRPD(tl, z)
-	cens, st = cleaning(z)
+function tstRPD(tl, z, y)
+	cens, st = cleaning(z, y)
 	fac, st = incrementR(st, tl)
 	cost = computeCost(fac)
 	return cost, cens
@@ -582,12 +645,13 @@ function changeRat()
 	dispsRPD = []
 	costsPDO = []
 	dispsPDO = []
-	q = 0.5
+	q = 1
+	adj = 3
 	
 	tl = makeTimeline()
-	for p in 6:10
+	for p in 1:10
 		push!(perc, p)
-		lG = [floor((p/100)*l) for l in gC]
+		lG = [floor(((p)/100)*l) for l in gC]
 		xzyF, opF, closeF, numF = solveTruncLP(groupsF, copy(lG), q)
 
 		xzyO, opO, closeO, numO = solveTruncLP(groupsO,[sum(lG)], q)
@@ -600,24 +664,24 @@ function changeRat()
 		
 		costPDO, censPDO = tstPDO(tl, sum(lG))
 
-		costRPD, censRPD = tstRPD(tl, xzyF[numF+1:numF+n])
+		# costRPD, censRPD = tstRPD(tl, xzyF[numF+1:numF+n], xzyF[numF+n+1:numF+n+m])
 
-		ratRO = [lG[g]/censRO[g] for g in 1:om]
-		ratRF = [lG[g]/censRF[g] for g in 1:om]
-		ratPD = [lG[g]/censPD[g] for g in 1:om]
-		ratRPD = [lG[g]/censRPD[g] for g in 1:om]
-		ratPDO = [lG[g]/censPDO[g] for g in 1:om]
+		ratRO = [censRO[g]/lG[g] for g in 1:om]
+		ratRF = [censRF[g]/lG[g] for g in 1:om]
+		ratPD = [censPD[g]/lG[g] for g in 1:om]
+		# ratRPD = [lG[g]/censRPD[g] for g in 1:om]
+		ratPDO = [censPDO[g]/lG[g] for g in 1:om]
 
-		push!(dispsPD, maximum(ratPD)/minimum(ratPD))
-		push!(dispsRO, maximum(ratRO)/minimum(ratRO))
-		push!(dispsRF, maximum(ratRF)/minimum(ratRF))
-		push!(dispsRPD, maximum(ratRPD)/minimum(ratRPD))
-		push!(dispsPDO, maximum(ratPDO)/minimum(ratPDO))
+		push!(dispsPD, maximum(ratPD))
+		push!(dispsRO, maximum(ratRO))
+		push!(dispsRF, maximum(ratRF))
+		# push!(dispsRPD, maximum(ratRPD)/minimum(ratRPD))
+		push!(dispsPDO, maximum(ratPDO))
 
 		push!(costsRO, costRO)
 		push!(costsRF, costRF)
 		push!(costsPD, costPD)
-		push!(costsRPD, costRPD)
+		# push!(costsRPD, costRPD)
 		push!(costsOPT, opF)
 		push!(costsPDO, costPDO)
 	end
@@ -764,7 +828,7 @@ SCS = "~2.1.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.5"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "aad562b2cd3a1a81a0b71bb57719aa0cbc9ff48f"
 
@@ -1400,7 +1464,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.5+0"
+version = "0.8.1+2"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -2097,17 +2161,16 @@ version = "1.4.1+2"
 
 # ╔═╡ Cell order:
 # ╠═78568b20-61c3-11f0-3955-7716abb99af4
-# ╠═42a1ef8e-d268-442e-8936-ef40115351f9
-# ╠═c93d92c2-dde5-4e60-8b41-4c3190d04996
 # ╟─cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
 # ╠═ddd6838c-4a35-456b-b0cb-1af6f044002f
+# ╠═646f38af-8ed5-4ed0-9c98-9f606cf22154
 # ╟─31464b67-7929-418f-b54a-709c9a1a7e73
 # ╟─92aeee8c-0f19-4ab3-a0d7-77f100fd9aea
 # ╟─17032a3e-617a-4168-a255-85760d4bb3be
 # ╟─67fdf390-16f5-48f3-932d-8413c5a9ff65
 # ╟─d4075add-59a8-4bc5-8907-ab2f7d90df78
 # ╟─215dfd10-4d04-482f-bb41-4ef20e8b1869
-# ╟─2aa07002-b266-4f45-a201-10718df17b32
+# ╠═2aa07002-b266-4f45-a201-10718df17b32
 # ╟─10fba2b5-19c8-4b69-b43b-cd64fdf850db
 # ╠═abbc8843-4815-4856-a254-29e84aac6c44
 # ╟─aa12f91e-20b0-4892-b26a-3f784f682d45
@@ -2124,7 +2187,8 @@ version = "1.4.1+2"
 # ╟─2c9728e5-05df-4273-8a50-1eaaef87e40d
 # ╟─ae2389b6-86c0-4c5a-a5b0-644eded2f5ed
 # ╟─9f153055-08f7-492e-861d-949b56d705ca
-# ╟─68e11e07-25dc-4f90-8619-845ec5bef0a1
+# ╠═1b098992-9277-4f8a-b00b-26e5e1d4494f
+# ╠═68e11e07-25dc-4f90-8619-845ec5bef0a1
 # ╠═fe9a2596-4eaf-4219-a8f5-b1b69ab7d811
 # ╠═cc97092b-1be5-41a8-b4a4-c348c19657a9
 # ╠═24f56482-62ce-44f9-9243-e2295c50d91a
