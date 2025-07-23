@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -8,10 +8,10 @@ using InteractiveUtils
 using CSV, Convex, SCS, LinearAlgebra, Statistics, SparseArrays, Printf, Plots
 
 # ╔═╡ 42a1ef8e-d268-442e-8936-ef40115351f9
-fC = CSV.File(open("subsets/adult-429-65.csv"))
+fC = CSV.File(open("subsets/adult-01-100.csv"))
 
 # ╔═╡ c93d92c2-dde5-4e60-8b41-4c3190d04996
-fF = CSV.File(open("subsets/adult-429-65-fac.csv"))
+fF = CSV.File(open("subsets/adult-01-100-fac.csv"))
 
 # ╔═╡ cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
 function l2(v1,v2)
@@ -121,12 +121,6 @@ function closeFac(q)
 	return close, num
 end
 
-# ╔═╡ 23afed56-f19d-429b-b267-9d20e1796972
-closeQ, numQ = closeFac(0.2)
-
-# ╔═╡ f3f88130-963c-4e7b-894a-109b8dab2d2b
-nn, c = closeFac(0.3)
-
 # ╔═╡ 17032a3e-617a-4168-a255-85760d4bb3be
 function genArrays(groups, out)
 	A = spzeros(n+n*m+om, n+n*m+m)
@@ -181,12 +175,6 @@ function genArrays(groups, out)
 	return A, b, f
 		
 end
-
-# ╔═╡ e3335ef2-1b15-4952-8e05-dcead8940ceb
-[floor((1/100)*l) for l in gC]
-
-# ╔═╡ 335fef4a-32f1-4d6d-9981-a3118fce958f
-xx = Variable(n+m+c)
 
 # ╔═╡ 67fdf390-16f5-48f3-932d-8413c5a9ff65
 function genTruncArrays(close, num, groups, out)
@@ -249,12 +237,6 @@ function genTruncArrays(close, num, groups, out)
 		
 end
 
-# ╔═╡ dbb228d7-61bc-45b6-8a8a-260894ba701a
-AA, bb, ff = genTruncArrays(nn, c, groupsF, [floor((1/100)*l) for l in gC])
-
-# ╔═╡ fff3e109-c3fc-41ab-a72e-d71f6f5f1a07
-solve!(minimize(dot(ff,xx), [AA*xx<=bb, xx>=0, xx<=1]), SCS.Optimizer)
-
 # ╔═╡ d4075add-59a8-4bc5-8907-ab2f7d90df78
 function solveTruncLP(groups, out, q)
 	close, num = closeFac(q)
@@ -278,9 +260,6 @@ function solveLP(groups, out)
 	OPTval = problem.optval
 	return x.value, OPTval
 end
-
-# ╔═╡ 30d3025e-b9c2-437c-af80-7215f615a53e
-solveLP(groupsF, [30,15])
 
 # ╔═╡ 2aa07002-b266-4f45-a201-10718df17b32
 function cleaning(zVec)
@@ -366,9 +345,6 @@ function roundTrunc(xzy, num)
 	
 	return status, facilities
 end
-
-# ╔═╡ 612c9d4c-9205-4532-ab56-faa050e4fe84
-ss, ffff = roundTrunc(xx.value,c)
 
 # ╔═╡ aa12f91e-20b0-4892-b26a-3f784f682d45
 function makeTimeline()
@@ -536,9 +512,6 @@ function takeCensus(status)
 	return cens
 end
 
-# ╔═╡ 5fc1aa8d-2cb3-4cf9-834e-27c5c9a984a8
-takeCensus(ss)
-
 # ╔═╡ 33359369-fa76-4760-b009-3c95037501f0
 function computeCost(facilities)
 	cost = 0
@@ -575,12 +548,6 @@ function tstRPD(tl, z)
 	return cost, cens
 end
 
-# ╔═╡ 9a04d16c-fc55-4ef2-8503-76e988786171
-tstRound(solveLP(groupsF, [30,15])[1])
-
-# ╔═╡ 10cd0556-178c-4cc1-a360-52b7401a1e18
-solveLP(groupsF, [30,15])
-
 # ╔═╡ ae2389b6-86c0-4c5a-a5b0-644eded2f5ed
 function tstPDO(tl, out)
 	fac, st = increment(tl, [n-out], groupsO)
@@ -598,11 +565,11 @@ function tstPD(tl, lG)
 	return cost, cens
 end
 
-# ╔═╡ 2e27747b-12e6-4596-b0ec-33c9e409f6ea
-tstPD(makeTimeline(), [30,15])
-
 # ╔═╡ 24f56482-62ce-44f9-9243-e2295c50d91a
 function changeRat()
+	for i in 1:m
+		costs[i] = dmax
+	end
 	perc = []
 	costsRO = []
 	costsRF = []
@@ -615,24 +582,25 @@ function changeRat()
 	dispsRPD = []
 	costsPDO = []
 	dispsPDO = []
+	q = 0.5
 	
 	tl = makeTimeline()
-	for p in 1:10
+	for p in 6:10
 		push!(perc, p)
 		lG = [floor((p/100)*l) for l in gC]
-		xzyF, opF = solveLP(groupsF, copy(lG))
+		xzyF, opF, closeF, numF = solveTruncLP(groupsF, copy(lG), q)
 
-		xzyO, opO = solveLP(groupsO,[sum(lG)])
+		xzyO, opO, closeO, numO = solveTruncLP(groupsO,[sum(lG)], q)
 		
-		costRO, censRO = tstRound(xzyO)
+		costRO, censRO = tstTruncRound(xzyO, numO)
 
-		costRF, censRF = tstRound(xzyF)
+		costRF, censRF = tstTruncRound(xzyF, numF)
 
 		costPD, censPD = tstPD(tl, copy(lG))
 		
 		costPDO, censPDO = tstPDO(tl, sum(lG))
 
-		costRPD, censRPD = tstRPD(tl, xzyF[m*n+1:m*n+n])
+		costRPD, censRPD = tstRPD(tl, xzyF[numF+1:numF+n])
 
 		ratRO = [lG[g]/censRO[g] for g in 1:om]
 		ratRF = [lG[g]/censRF[g] for g in 1:om]
@@ -656,10 +624,39 @@ function changeRat()
 	print("perc = ", perc, "\n\ncostsRO = ", costsRO, "\n\ncostsRF = ", costsRF, "\n\ncostsPD = ", costsPD, "\n\ncostsPDO = ", costsPDO, "\n\ncostsRPD = ", costsRPD, "\n\ncostsOPT = ", costsOPT, "\n\ndispsRO = ", dispsRO, "\n\ndispsRF = ", dispsRF, "\n\ndispsPD = ", dispsPD, "\n\ndispsPDO = ", dispsPDO, "\n\ndispsRPD = ", dispsRPD)
 end
 
+# ╔═╡ 1fc6d69e-abf2-4ec5-8df0-8c81101e131b
+"""
+perc = Any[6, 7, 8, 9, 10]
+
+costsRO = Any[3900.104185501693, 3829.8300652475573, 3705.3074004267455, 3657.783169696541, 3549.05058149805]
+
+costsRF = Any[3907.7616323355137, 3832.8161975553185, 3737.5768446558686, 3662.0164122284764, 3554.11912390036]
+
+costsPD = Any[5471.776313463201, 5385.0833492657675, 5310.846991715409, 5227.417719219343, 5148.464253547564]
+
+costsPDO = Any[5459.435054325504, 5371.08503129012, 5285.846255666279, 5220.800852401908, 5140.05286131324]
+
+costsRPD = Any[5544.524120889405, 5467.242925801546, 5409.0125260124005, 5316.980364520852, 5243.3747648804865]
+
+costsOPT = Any[3823.654380154984, 3744.631837183172, 3669.71947559132, 3596.247137762614, 3523.9407473666956]
+
+dispsRO = Any[1.6708812260536399, 1.5554661301140174, 1.6883438818565402, 1.6673325010403661, 1.6189423076923077]
+
+dispsRF = Any[1.0052523103517055, 1.0096153846153846, 1.0093750000000001, 1.0081018518518519, 1.0103424657534246]
+
+dispsPD = Any[1.0, 1.0, 1.0, 1.0, 1.0]
+
+dispsPDO = Any[2.063354700854701, 1.9730914588057444, 1.8775555555555556, 1.7070411070411071, 1.6475961538461539]
+
+dispsRPD = Any[1.0052523103517055, 1.0096153846153846, 1.0093750000000001, 1.0081018518518519, 1.0103424657534246]
+"""
+
 # ╔═╡ 9227d457-a5c7-41cc-a31f-7655060ac27f
 changeRat()
 
 # ╔═╡ 734c8fed-1643-4e70-a3cc-a9d911de952d
+# ╠═╡ disabled = true
+#=╠═╡
 function changeQ()
 	quant = []
 	costsR = []
@@ -693,6 +690,7 @@ function changeQ()
 	print(quant, costsR, costsRPD, costsOPT, dispsR, dispsRPD)
 	
 end
+  ╠═╡ =#
 
 # ╔═╡ 018241d0-8cf7-4785-a42c-d2e299b41d56
 # ╠═╡ disabled = true
@@ -766,7 +764,7 @@ SCS = "~2.1.0"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "aad562b2cd3a1a81a0b71bb57719aa0cbc9ff48f"
 
@@ -1402,7 +1400,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -2101,47 +2099,36 @@ version = "1.4.1+2"
 # ╠═78568b20-61c3-11f0-3955-7716abb99af4
 # ╠═42a1ef8e-d268-442e-8936-ef40115351f9
 # ╠═c93d92c2-dde5-4e60-8b41-4c3190d04996
-# ╠═cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
+# ╟─cdc3f589-2b2e-42ae-b9f1-0643b17e17f0
 # ╠═ddd6838c-4a35-456b-b0cb-1af6f044002f
-# ╠═31464b67-7929-418f-b54a-709c9a1a7e73
-# ╠═23afed56-f19d-429b-b267-9d20e1796972
-# ╠═92aeee8c-0f19-4ab3-a0d7-77f100fd9aea
-# ╠═17032a3e-617a-4168-a255-85760d4bb3be
-# ╠═e3335ef2-1b15-4952-8e05-dcead8940ceb
-# ╠═f3f88130-963c-4e7b-894a-109b8dab2d2b
-# ╠═dbb228d7-61bc-45b6-8a8a-260894ba701a
-# ╠═335fef4a-32f1-4d6d-9981-a3118fce958f
-# ╠═fff3e109-c3fc-41ab-a72e-d71f6f5f1a07
-# ╠═612c9d4c-9205-4532-ab56-faa050e4fe84
-# ╠═5fc1aa8d-2cb3-4cf9-834e-27c5c9a984a8
-# ╠═67fdf390-16f5-48f3-932d-8413c5a9ff65
-# ╠═d4075add-59a8-4bc5-8907-ab2f7d90df78
-# ╠═30d3025e-b9c2-437c-af80-7215f615a53e
-# ╠═215dfd10-4d04-482f-bb41-4ef20e8b1869
-# ╠═2aa07002-b266-4f45-a201-10718df17b32
+# ╟─31464b67-7929-418f-b54a-709c9a1a7e73
+# ╟─92aeee8c-0f19-4ab3-a0d7-77f100fd9aea
+# ╟─17032a3e-617a-4168-a255-85760d4bb3be
+# ╟─67fdf390-16f5-48f3-932d-8413c5a9ff65
+# ╟─d4075add-59a8-4bc5-8907-ab2f7d90df78
+# ╟─215dfd10-4d04-482f-bb41-4ef20e8b1869
+# ╟─2aa07002-b266-4f45-a201-10718df17b32
 # ╟─10fba2b5-19c8-4b69-b43b-cd64fdf850db
 # ╠═abbc8843-4815-4856-a254-29e84aac6c44
 # ╟─aa12f91e-20b0-4892-b26a-3f784f682d45
-# ╠═48c45b95-ece3-4c8f-8532-479493b9b882
+# ╟─48c45b95-ece3-4c8f-8532-479493b9b882
 # ╟─5d89c652-2999-4217-bd12-741cf65b1b60
 # ╟─e3218920-0a41-49c4-9ea0-5c8cf595c389
 # ╟─26512753-e165-4791-99d6-462afb2ceef0
 # ╟─b7415b16-7d26-4167-ad6c-d961c18fa109
 # ╟─8a328695-b3ae-4faf-93ea-7df93e99a52a
 # ╟─34195a22-188d-4baf-b788-2001eab87201
-# ╠═e0be87cc-e21b-4068-a84d-eb3510477b13
-# ╠═33359369-fa76-4760-b009-3c95037501f0
+# ╟─e0be87cc-e21b-4068-a84d-eb3510477b13
+# ╟─33359369-fa76-4760-b009-3c95037501f0
 # ╠═fd03e791-f9ed-491e-8ee0-bdf452e92175
-# ╠═2c9728e5-05df-4273-8a50-1eaaef87e40d
-# ╠═9a04d16c-fc55-4ef2-8503-76e988786171
-# ╠═2e27747b-12e6-4596-b0ec-33c9e409f6ea
-# ╠═10cd0556-178c-4cc1-a360-52b7401a1e18
-# ╠═ae2389b6-86c0-4c5a-a5b0-644eded2f5ed
-# ╠═9f153055-08f7-492e-861d-949b56d705ca
-# ╠═68e11e07-25dc-4f90-8619-845ec5bef0a1
+# ╟─2c9728e5-05df-4273-8a50-1eaaef87e40d
+# ╟─ae2389b6-86c0-4c5a-a5b0-644eded2f5ed
+# ╟─9f153055-08f7-492e-861d-949b56d705ca
+# ╟─68e11e07-25dc-4f90-8619-845ec5bef0a1
 # ╠═fe9a2596-4eaf-4219-a8f5-b1b69ab7d811
 # ╠═cc97092b-1be5-41a8-b4a4-c348c19657a9
 # ╠═24f56482-62ce-44f9-9243-e2295c50d91a
+# ╠═1fc6d69e-abf2-4ec5-8df0-8c81101e131b
 # ╠═9227d457-a5c7-41cc-a31f-7655060ac27f
 # ╠═734c8fed-1643-4e70-a3cc-a9d911de952d
 # ╠═018241d0-8cf7-4785-a42c-d2e299b41d56

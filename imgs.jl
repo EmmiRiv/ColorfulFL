@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.20.3
+# v0.20.6
 
 using Markdown
 using InteractiveUtils
@@ -68,31 +68,9 @@ begin
 end
   ╠═╡ =#
 
-# ╔═╡ 97b19559-d6f9-4dfe-bd25-c2b006960540
-function plotDisp(x, y, l, a, t)
-	plot(layout=(1,1))
-
-	for i in 1:size(y)[1]
-		plot!(x,y[i],linewidth=2,label=l[i])
-	end
-	xlabel!(a[1])
-	ylabel!(a[2])
-	plot!(title=t)
-end
-
-# ╔═╡ 734fd244-3fc8-43b2-9c57-bb3098cec8a5
-function plotCost(x,y,l,a,t)
-	plot(layout=(1,1))
-
-	for i in 1:size(y)[1]
-		plot!(x,y[i],linewidth=2,label=l[i])
-	end
-	xlabel!(a[1])
-	ylabel!(a[2])
-	plot!(title=t, legend=:right)
-end
-
 # ╔═╡ 8ab933e6-a37b-47fb-8dcd-f40496cdd789
+# ╠═╡ disabled = true
+#=╠═╡
 begin
 #2266-340-sex
 	rand_cost_k5 = [4105.520220477397, 3892.3363388245643, 3353.567130223865, 3659.0115625799763, 4023.6243101511272, 3744.6094368562494, 3144.309427571429, 3048.2181539263415, 3119.9101520001796, 3975.0223992696415]
@@ -126,71 +104,7 @@ begin
 	plotCost(p_out_k5, [rand_cost_k5, basic_cost_k5, outlier_cost_k5, fair_cost_k5], costLabel, costAxis, costTitle)
 	
 end
-
-# ╔═╡ 4686a83b-e0ad-4a86-9a76-d3d0d58039bd
-function plotDiscount(x,y,l,a,t)
-	plot(layout=(1,1))
-	std = y[1][1]
-
-	for i in 1:size(y)[1]
-		yp = [100-(y[i][l]/std)*100 for l in 1:size(y[i])[1]]
-		plot!(x,yp,linewidth=2,label=l[i])
-	end
-	plot!(x,x,linewidth=2,linestyle=:dash,label="")
-	xlabel!(a[1])
-	ylabel!(a[2])
-	plot!(title=t)
-end
-
-# ╔═╡ c0f0abd8-7d98-44b4-9a8f-4b66660ee3bb
-function plotViolation1(x,b,e,l,a,t)
-	plot(layout=(1,1))
-
-	for i in 1:size(b[1])[1]
-		yp = [b[l][i]-e[l][i] for l in 1:size(b)[1]]
-		plot!(x,yp,linewidth=2,label=l[i])
-	end
-	xlabel!(a[1])
-	ylabel!(a[2])
-	plot!(title=t)
-end
-
-# ╔═╡ 46651d59-349d-407c-af1a-018151799ef8
-begin
-	perc = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-	
-	costsRO = [594.825598551322, 580.4141972645349, 488.3905814153548, 488.3905814153548, 543.8019137074845, 534.3302790530797, 525.1601686495928, 516.2906374473351, 478.8969283689352, 497.1340243557993]
-	
-	costsRF = [594.825598551322, 577.6407686422066, 398.4326987540476, 485.99369584313814, 543.912478747586, 534.4746157314086, 525.4707038837638, 516.5522070262596, 507.8454861196833, 497.2910554130364]
-	
-	costsPD = [1207.513311412974, 1197.7862610263485, 1181.9672586456688, 1169.6948055580378, 1155.5451970471754, 1144.4608661053242, 1134.056369377827, 1123.570141910439, 1113.7102747172466, 1101.9654259851623]
-	
-	costsPDO = [1210.8834370033355, 1197.4385305763712, 1180.945988899461, 1168.5170613411954, 1154.1750964723492, 1143.20822886006, 1132.9157336081507, 1123.1001294130986, 1113.5701888877609, 1101.870511588557]
-	
-	costsRPD = [1242.1077228925476, 1239.3342942702193, 1186.8892091596258, 1182.8773783741121, 1156.9551677261052, 1148.733060953265, 1138.2424247979948, 1129.0964702571137, 1120.8329258811914, 1111.2236556818439]
-	
-	costsOPT = [594.8256998435343, 581.2433540934817, 566.6399786514658, 556.183040573343, 543.9153845862393, 534.4720404393945, 525.4750825766439, 516.5540090702144, 507.8454992081912, 497.29122001943443]
-	
-	dispsRO = [1.0, 2.4, 2.25, 2.0454545454545454, 1.25, 1.4901960784313724, 1.6541353383458646, 1.5625, 1.44, 1.4090909090909092]
-	
-	dispsRF = [1.0, 2.5, 1.1428571428571428, 1.3636363636363635, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-	
-	dispsPD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-	
-	dispsPDO = [Inf, 2.4, 2.5, 3.181818181818182, 4.75, 2.4705882352941178, 2.017543859649123, 1.8571428571428572, 1.296, 1.25]
-	
-	dispsRPD = [1.0, 2.5, 1.1428571428571428, 1.3636363636363635, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-
-	# dispLabelFL = ["baseline", "fair greedy", "fair combo"]
-	# dispTitleFL = "disparity over different strategies"
-	# dispAxisFL = ["percent outliers", "disparity"]
-	# plotDisp(p_out_f10q5, [groupless_disp_f10q5, greedy_disp_f10q5, combo_disp_f10q5], dispLabelFL, dispAxisFL, dispTitleFL)
-
-	costLabelFL = ["groupless greedy", "fair greedy", "fair combo"]
-	costTitleFL = "cost over different strategies"
-	costAxisFL = ["percent outliers", "cost"]
-	plotCost(perc, [costsPDO, costsPD, costsRPD], costLabelFL, costAxisFL, costTitleFL)
-end
+  ╠═╡ =#
 
 # ╔═╡ c3dbf038-5f5b-42c7-820e-faf681c8753a
 # ╠═╡ disabled = true
@@ -229,6 +143,140 @@ begin
 end
   ╠═╡ =#
 
+# ╔═╡ 97b19559-d6f9-4dfe-bd25-c2b006960540
+function plotDisp(x, y, l, a, t)
+	plot(layout=(1,1))
+
+	for i in 1:size(y)[1]
+		plot!(x,y[i],linewidth=2,label=l[i])
+	end
+	xlabel!(a[1])
+	ylabel!(a[2])
+	plot!(title=t)
+end
+
+# ╔═╡ 734fd244-3fc8-43b2-9c57-bb3098cec8a5
+function plotCost(x,y,l,a,t)
+	plot(layout=(1,1))
+
+	for i in 1:size(y)[1]
+		plot!(x,y[i],linewidth=2,label=l[i])
+	end
+	xlabel!(a[1])
+	ylabel!(a[2])
+	plot!(title=t, legend=:right)
+end
+
+# ╔═╡ 4686a83b-e0ad-4a86-9a76-d3d0d58039bd
+function plotDiscount(x,y,l,a,t)
+	plot(layout=(1,1))
+	std = y[1][1]
+
+	for i in 1:size(y)[1]
+		yp = [100-(y[i][l]/std)*100 for l in 1:size(y[i])[1]]
+		plot!(x,yp,linewidth=2,label=l[i])
+	end
+	plot!(x,x,linewidth=2,linestyle=:dash,label="")
+	xlabel!(a[1])
+	ylabel!(a[2])
+	plot!(title=t)
+end
+
+# ╔═╡ c0f0abd8-7d98-44b4-9a8f-4b66660ee3bb
+function plotViolation1(x,b,e,l,a,t)
+	plot(layout=(1,1))
+
+	for i in 1:size(b[1])[1]
+		yp = [b[l][i]-e[l][i] for l in 1:size(b)[1]]
+		plot!(x,yp,linewidth=2,label=l[i])
+	end
+	xlabel!(a[1])
+	ylabel!(a[2])
+	plot!(title=t)
+end
+
+# ╔═╡ 46651d59-349d-407c-af1a-018151799ef8
+# ╠═╡ disabled = true
+#=╠═╡
+begin
+	perc = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+	
+	costsRO = [594.825598551322, 580.4141972645349, 488.3905814153548, 488.3905814153548, 543.8019137074845, 534.3302790530797, 525.1601686495928, 516.2906374473351, 478.8969283689352, 497.1340243557993]
+	
+	costsRF = [594.825598551322, 577.6407686422066, 398.4326987540476, 485.99369584313814, 543.912478747586, 534.4746157314086, 525.4707038837638, 516.5522070262596, 507.8454861196833, 497.2910554130364]
+	
+	costsPD = [1207.513311412974, 1197.7862610263485, 1181.9672586456688, 1169.6948055580378, 1155.5451970471754, 1144.4608661053242, 1134.056369377827, 1123.570141910439, 1113.7102747172466, 1101.9654259851623]
+	
+	costsPDO = [1210.8834370033355, 1197.4385305763712, 1180.945988899461, 1168.5170613411954, 1154.1750964723492, 1143.20822886006, 1132.9157336081507, 1123.1001294130986, 1113.5701888877609, 1101.870511588557]
+	
+	costsRPD = [1242.1077228925476, 1239.3342942702193, 1186.8892091596258, 1182.8773783741121, 1156.9551677261052, 1148.733060953265, 1138.2424247979948, 1129.0964702571137, 1120.8329258811914, 1111.2236556818439]
+	
+	costsOPT = [594.8256998435343, 581.2433540934817, 566.6399786514658, 556.183040573343, 543.9153845862393, 534.4720404393945, 525.4750825766439, 516.5540090702144, 507.8454992081912, 497.29122001943443]
+	
+	dispsRO = [1.0, 2.4, 2.25, 2.0454545454545454, 1.25, 1.4901960784313724, 1.6541353383458646, 1.5625, 1.44, 1.4090909090909092]
+	
+	dispsRF = [1.0, 2.5, 1.1428571428571428, 1.3636363636363635, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+	
+	dispsPD = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+	
+	dispsPDO = [Inf, 2.4, 2.5, 3.181818181818182, 4.75, 2.4705882352941178, 2.017543859649123, 1.8571428571428572, 1.296, 1.25]
+	
+	dispsRPD = [1.0, 2.5, 1.1428571428571428, 1.3636363636363635, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+	# dispLabelFL = ["baseline", "fair greedy", "fair combo"]
+	# dispTitleFL = "disparity over different strategies"
+	# dispAxisFL = ["percent outliers", "disparity"]
+	# plotDisp(p_out_f10q5, [groupless_disp_f10q5, greedy_disp_f10q5, combo_disp_f10q5], dispLabelFL, dispAxisFL, dispTitleFL)
+
+	costLabelFL = ["groupless greedy", "fair greedy", "fair combo"]
+	costTitleFL = "cost over different strategies"
+	costAxisFL = ["percent outliers", "cost"]
+	plotCost(perc, [costsPDO, costsPD, costsRPD], costLabelFL, costAxisFL, costTitleFL)
+end
+  ╠═╡ =#
+
+# ╔═╡ 1a1cf3b1-6f77-4e65-b073-443fc456d4c4
+begin
+	perc = [1, 2, 3, 4, 5]
+	
+	costsRO = [4352.38290660784, 4307.648276852835, 4215.832867297801, 4062.4583595029426, 3990.9794479277125]
+	
+	costsRF = [4354.278362903377, 4310.164377296651, 4217.0027291118395, 4055.050903249421, 3984.8001189858583]
+	
+	costsPD = [5939.6773064334475, 5829.014452023571, 5739.5601065042465, 5655.498101280501, 5558.079906952613]
+	
+	costsPDO = [5938.475076542335, 5823.034352955646, 5743.337310356767, 5649.4662625991605, 5551.84644545641]
+	
+	costsRPD = [5950.468889137814, 5887.4552285208965, 5839.201923508575, 5710.904220170477, 5633.584461412828]
+	
+	costsOPT = [4296.585738455335, 4188.091603326481, 4089.224725661794, 3995.3686091670006, 3907.1884172191]
+	
+	dispsRO = [2.041666666666667, 1.5225, 1.9164444444444444, 1.9666666666666668, 1.7979259259259257]
+	
+	dispsRF = [1.0344827586206897, 1.0024691358024693, 1.0104052573932092, 1.0178362573099418, 1.0063254744105807]
+	
+	dispsPD = [1.0, 1.0, 1.0, 1.0, 1.0]
+	
+	dispsPDO = [2.4666666666666663, 1.565079365079365, 2.1315555555555554, 2.1752525252525254, 2.2019512195121953]
+	
+	dispsRPD = [1.0344827586206897, 1.0024691358024693, 1.0104052573932092, 1.0178362573099418, 1.0063254744105807]
+
+	# dispLabelFL = ["groupless greedy", "fair greedy", "bicriteria"]
+	# dispTitleFL = "disparity over different strategies"
+	# dispAxisFL = ["percent outliers", "disparity"]
+	# plotDisp(perc, [dispsPDO, dispsPD, dispsRPD], dispLabelFL, dispAxisFL, dispTitleFL)
+
+	# costLabelFL = ["groupless greedy", "fair greedy", "bicriteria"]
+	# costTitleFL = "cost over different strategies"
+	# costAxisFL = ["percent outliers", "cost"]
+	# plotCost(perc, [costsPDO, costsPD, costsRPD], costLabelFL, costAxisFL, costTitleFL)
+
+	costLabelFLR = ["groupless rounding", "fair rounding", "opt"]
+	costTitleFLR = "cost over different strategies"
+	costAxisFLR = ["percent outliers", "cost"]
+	plotCost(perc, [costsRO, costsRF, costsOPT], costLabelFLR, costAxisFLR, costTitleFLR)
+end
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
@@ -242,7 +290,7 @@ Plots = "~1.40.13"
 PLUTO_MANIFEST_TOML_CONTENTS = """
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.11.1"
+julia_version = "1.11.5"
 manifest_format = "2.0"
 project_hash = "e5ea54724743b90e9989aa3e76021cba564ab36a"
 
@@ -740,7 +788,7 @@ version = "0.3.27+1"
 [[deps.OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
-version = "0.8.1+2"
+version = "0.8.5+0"
 
 [[deps.OpenSSL]]
 deps = ["BitFlags", "Dates", "MozillaCACerts_jll", "OpenSSL_jll", "Sockets"]
@@ -1350,9 +1398,10 @@ version = "1.4.1+2"
 # ╔═╡ Cell order:
 # ╠═674ea773-6575-45cf-a4e4-f3a6f868b26d
 # ╟─3fa37f09-c369-4e2b-a563-c6a6acf56c84
-# ╠═8ab933e6-a37b-47fb-8dcd-f40496cdd789
+# ╟─8ab933e6-a37b-47fb-8dcd-f40496cdd789
 # ╟─c3dbf038-5f5b-42c7-820e-faf681c8753a
-# ╠═46651d59-349d-407c-af1a-018151799ef8
+# ╟─46651d59-349d-407c-af1a-018151799ef8
+# ╠═1a1cf3b1-6f77-4e65-b073-443fc456d4c4
 # ╠═97b19559-d6f9-4dfe-bd25-c2b006960540
 # ╠═734fd244-3fc8-43b2-9c57-bb3098cec8a5
 # ╠═4686a83b-e0ad-4a86-9a76-d3d0d58039bd
